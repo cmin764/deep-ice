@@ -36,7 +36,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     # ### end Alembic commands ###
-    # Insert initial data
+
+    # Insert initial data.
     with Session(bind=op.get_bind()) as session:
         session.exec(
             insert(IceCream).values(
