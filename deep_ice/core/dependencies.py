@@ -1,31 +1,20 @@
-from typing import Annotated, AsyncGenerator
+from typing import Annotated
 
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from deep_ice.core import security
 from deep_ice.core.config import settings
+from deep_ice.core.database import get_async_session
 from deep_ice.models import User, TokenPayload
 
-async_engine = create_async_engine(
-    str(settings.SQLALCHEMY_DATABASE_URI), echo=True, future=True
-)
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/access-token"
 )
-
-
-async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    async_session = async_sessionmaker(
-        bind=async_engine, class_=AsyncSession, expire_on_commit=False
-    )
-    async with async_session() as session:
-        yield session
 
 
 SessionDep = Annotated[AsyncSession, Depends(get_async_session)]
