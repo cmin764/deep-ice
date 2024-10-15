@@ -1,0 +1,24 @@
+[project]
+name = "deep-ice"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.13.3",
+    "fastapi[standard]>=0.115.2",
+    "pydantic>=2.9.2",
+    "pydantic-settings>=2.5.2",
+    "sqlmodel>=0.0.22",
+    "asyncpg>=0.29.0",
+    "greenlet>=3.1.1",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "black>=24.10.0",
+    "flake8>=7.1.1",
+    "mypy>=1.12.0",
+    "pep8>=1.7.1",
+    "ruff>=0.6.9",
+]
