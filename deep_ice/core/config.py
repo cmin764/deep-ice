@@ -1,3 +1,5 @@
+import secrets
+
 from pydantic import (
     PostgresDsn,
     computed_field,
@@ -14,14 +16,19 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    PROJECT_NAME: str = "Deep Ice"
     API_V1_STR: str = "/v1"
-    PROJECT_NAME: str
+
+    # Helps JWT signing and checking.
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    # 60 minutes * 24 hours * 8 days = 8 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
 
     POSTGRES_SERVER: str
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str = ""
-    POSTGRES_DB: str = ""
+    POSTGRES_DB: str
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -36,4 +43,4 @@ class Settings(BaseSettings):
         )
 
 
-settings = Settings()
+settings = Settings()  # type: ignore
