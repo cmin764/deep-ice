@@ -1,0 +1,46 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+env.bak/
+.venv.bak/
+
+# Local configuration files
+*.env
+*.local
+
+# Jupyter Notebook files
+.ipynb_checkpoints
+*.ipynb
+
+# Distribution and packaging
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Logs
+*.log
+
+# Testing and coverage
+.coverage
+*.cover
+tests/
+pytest_cache/
+
+# IDE/editor directories
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+docker-compose*.yaml
