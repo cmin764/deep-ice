@@ -57,7 +57,7 @@ async def get_cart_items(session: SessionDep, current_user: CurrentUserDep):
 
 
 @router.post("/items", response_model=RetrieveCartItem)
-async def add_items_to_cart(
+async def add_item_to_cart(
     session: SessionDep,
     current_user: CurrentUserDep,
     item: Annotated[CreateCartItem, Body()],
