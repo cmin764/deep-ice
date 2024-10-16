@@ -1,0 +1,48 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: deep_ice_app
+    volumes:
+      - .:/app
+    ports:
+      - "80:80"
+    environment:
+      POSTGRES_SERVER: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: deep
+      POSTGRES_PASSWORD: opinion
+      POSTGRES_DB: deep_ice
+    depends_on:
+      - db
+
+  db:
+    image: postgres:latest
+    container_name: deep_ice_db
+    environment:
+      POSTGRES_USER: deep
+      POSTGRES_PASSWORD: opinion
+      POSTGRES_DB: deep_ice
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  alembic:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: deep_ice_alembic
+    command: uv run alembic upgrade head
+    environment:
+      POSTGRES_SERVER: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: deep
+      POSTGRES_PASSWORD: opinion
+      POSTGRES_DB: deep_ice
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
