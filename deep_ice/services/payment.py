@@ -5,6 +5,10 @@ from dataclasses import dataclass
 from deep_ice.models import PaymentMethod, PaymentStatus
 
 
+class PaymentError(Exception):
+    """Base class for immediate payment failures. (like invalid card info)"""
+
+
 @dataclass
 class PaymentServiceStub:
     """Dummy payment service which emulates IO blocking during order payment."""
