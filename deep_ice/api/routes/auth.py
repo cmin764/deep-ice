@@ -11,10 +11,10 @@ from deep_ice.services import user as user_service
 router = APIRouter()
 
 
-@router.post("/access-token")
+@router.post("/access-token", response_model=Token)
 async def get_access_token(
     session: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
-) -> Token:
+):
     """Generates an access token after logging in the user."""
     user = await user_service.authenticate(
         session=session, email=form_data.username, password=form_data.password

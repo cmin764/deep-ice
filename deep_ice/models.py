@@ -89,7 +89,7 @@ class BaseCart(SQLModel):
     ]
 
 
-class Cart(BaseCart, table=True):
+class Cart(BaseCart, AsyncAttrs, table=True):
     id: Annotated[int | None, Field(primary_key=True)] = None
 
     items: list[CartItem] = Relationship(back_populates="cart", cascade_delete=True)

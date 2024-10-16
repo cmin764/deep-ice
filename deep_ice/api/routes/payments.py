@@ -36,6 +36,8 @@ async def _make_order_from_cart(
         order_items = await order.awaitable_attrs.items
         for cart_item in cart.items:
             icecream = cart_item.icecream
+            # NOTE(cmin764): Make sure to deduct this blocked amount from the main
+            #  stock once the order gets confirmed.
             icecream.blocked_quantity += cart_item.quantity
             session.add(icecream)
 
@@ -77,7 +79,7 @@ async def make_payment(
             detail="There are no items in the cart",
         )
 
-    # TODO(cmin764): Check if we need a Lock async primitive here in order to allow
+    # FIXME(cmin764): Check if we need a Lock async primitive here in order to allow
     #  only one user to submit an order at a time. (based on available stock check)
 
     # Ensure once again that we still have on stock the items we intend to buy.
@@ -111,7 +113,7 @@ async def make_payment(
         #  delete the cart and all its contents.
         await session.delete(cart)
     except (SQLAlchemyError, PaymentError) as exc:
-        # TODO(cmin764): Add proper logging and capture exception in Sentry.
+        # FIXME(cmin764): Add proper logging and capture exception in Sentry.
         print("Payment error: ", exc)
         await session.rollback()
         raise HTTPException(
@@ -120,3 +122,6 @@ async def make_payment(
     else:
         await session.commit()
         return payment
+
+
+# TODO(cmin764): Implement payments and orders retrieval endpoints.
