@@ -1,16 +1,20 @@
 from typing import Annotated
 
 from pydantic import EmailStr
+from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlmodel import Field, SQLModel, Relationship, UniqueConstraint
 
 
-class IceCream(SQLModel, table=True):
-    id: Annotated[int | None, Field(primary_key=True)] = None
+class BaseIceCream(SQLModel):
     name: str
     flavor: str
-    stock: int
     price: float
-    blocked_quantity: int = 0
+
+
+class IceCream(BaseIceCream, table=True):
+    id: Annotated[int | None, Field(primary_key=True)] = None
+    stock: int
+    blocked_quantity: int = 0  # reserved for payments only
     is_active: bool = True
 
     cart_items: list["CartItem"] = Relationship(
@@ -18,8 +22,17 @@ class IceCream(SQLModel, table=True):
     )
     order_items: list["OrderItem"] = Relationship(back_populates="icecream")
 
+    @property
+    def available_stock(self) -> int:
+        return self.stock - self.blocked_quantity
 
-class User(SQLModel, table=True):
+
+class RetrieveIceCream(BaseIceCream):
+    id: int
+    available_stock: int
+
+
+class User(SQLModel, AsyncAttrs, table=True):
     __tablename__ = "users"
 
     id: Annotated[int | None, Field(primary_key=True)] = None
@@ -42,29 +55,49 @@ class TokenPayload(SQLModel):
     sub: str | int
 
 
-class CartItem(SQLModel, table=True):
+class BaseCartItem(SQLModel):
+    icecream_id: Annotated[int, Field(foreign_key="icecream.id", ondelete="CASCADE")]
+    quantity: Annotated[int, Field(ge=1)] = 1  # defaults to 1 when not specified
+
+
+class CartItem(BaseCartItem, AsyncAttrs, table=True):
     __tablename__ = "cartitems"
     __table_args__ = (
         UniqueConstraint("cart_id", "icecream_id", name="cart_icecream_id"),
     )
 
     id: Annotated[int | None, Field(primary_key=True)] = None
-    icecream_id: Annotated[int, Field(foreign_key="icecream.id", ondelete="CASCADE")]
     cart_id: Annotated[int, Field(foreign_key="cart.id", ondelete="CASCADE")]
-    quantity: Annotated[int, Field(ge=1)] = 1  # defaults to 1 when not specified
 
     icecream: IceCream = Relationship(back_populates="cart_items")
     cart: "Cart" = Relationship(back_populates="items")
 
 
-class Cart(SQLModel, table=True):
-    id: Annotated[int | None, Field(primary_key=True)] = None
+class RetrieveCartItem(BaseCartItem):
+    id: int
+    icecream: RetrieveIceCream
+
+
+class CreateCartItem(BaseCartItem):
+    pass
+
+
+class BaseCart(SQLModel):
     user_id: Annotated[
         int, Field(foreign_key="users.id", unique=True, ondelete="CASCADE")
     ]
 
+
+class Cart(BaseCart, table=True):
+    id: Annotated[int | None, Field(primary_key=True)] = None
+
     items: list[CartItem] = Relationship(back_populates="cart", cascade_delete=True)
     user: User = Relationship(back_populates="cart")
+
+
+class RetrieveCart(BaseCart):
+    id: int
+    items: list[RetrieveCartItem] = []
 
 
 class OrderItem(SQLModel, table=True):
