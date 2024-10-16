@@ -18,7 +18,7 @@ from deep_ice.models import (
     OrderItem,
     OrderStatus,
 )
-from deep_ice.services.payment import payment_service
+from deep_ice.services.payment import payment_service, PaymentError
 
 router = APIRouter()
 
@@ -33,6 +33,7 @@ async def _make_order_from_cart(
     await session.refresh(order)
 
     try:
+        order_items = await order.awaitable_attrs.items
         for cart_item in cart.items:
             icecream = cart_item.icecream
             icecream.blocked_quantity += cart_item.quantity
@@ -44,9 +45,9 @@ async def _make_order_from_cart(
                 quantity=cart_item.quantity,
                 total_price=cart_item.quantity * icecream.price,
             )
-            order.items.append(order_item)
+            order_items.append(order_item)
 
-        session.add_all(order.items)
+        session.add_all(order_items)
     except SQLAlchemyError:
         await session.rollback()
         await session.delete(order)
@@ -70,10 +71,14 @@ async def make_payment(
         .options(selectinload(Cart.items).selectinload(CartItem.icecream))
     )
     cart: Cart = (await session.exec(statement)).one_or_none()
-    if not cart:
+    if not cart or not cart.items:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Item does not exist"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="There are no items in the cart",
         )
+
+    # TODO(cmin764): Check if we need a Lock async primitive here in order to allow
+    #  only one user to submit an order at a time. (based on available stock check)
 
     # Ensure once again that we still have on stock the items we intend to buy.
     reduced = False
@@ -102,9 +107,16 @@ async def make_payment(
             method=method,
         )
         session.add(payment)
-    except SQLAlchemyError as exc:
+        # With a payment triggered over a successfully created order, we can safely
+        #  delete the cart and all its contents.
+        await session.delete(cart)
+    except (SQLAlchemyError, PaymentError) as exc:
         # TODO(cmin764): Add proper logging and capture exception in Sentry.
         print("Payment error: ", exc)
         await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Payment failed"
+        )
     else:
         await session.commit()
+        return payment

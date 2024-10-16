@@ -125,7 +125,7 @@ class OrderStatus(enum.Enum):
     CANCELLED = "CANCELLED"
 
 
-class Order(SQLModel, table=True):
+class Order(SQLModel, AsyncAttrs, table=True):
     __tablename__ = "orders"
 
     id: Annotated[int | None, Field(primary_key=True)] = None
