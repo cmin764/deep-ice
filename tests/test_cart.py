@@ -13,9 +13,12 @@ async def test_get_cart(auth_client, initial_data):
     assert not data["items"]
 
 
-async def _add_cart_item(session, auth_client):
+async def _add_cart_item(session, auth_client, active=True):
     query_icecream = select(IceCream).where(IceCream.flavor == "chocolate")
     icecream = (await session.exec(query_icecream)).one_or_none()
+    icecream.is_active = active
+    session.add(icecream)
+    await session.commit()
 
     response = await auth_client.post(
         "/v1/cart/items", json={"icecream_id": icecream.id, "quantity": 1}
@@ -50,3 +53,9 @@ async def test_put_to_cart(session, auth_client, initial_data):
         f"/v1/cart/items/{data["id"]}", json={"quantity": 0}
     )
     assert response.status_code == 204
+
+
+@pytest.mark.anyio
+async def test_add_inactive_icecream(session, auth_client, initial_data):
+    response = await _add_cart_item(session, auth_client, active=False)
+    assert response.status_code == 409

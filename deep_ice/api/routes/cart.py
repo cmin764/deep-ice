@@ -45,6 +45,10 @@ async def _check_stock(session: AsyncSession, *, cart_item) -> IceCream:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Icecream does not exist"
         )
+    if not icecream.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Inactive icecream flavor"
+        )
     if cart_item.quantity > icecream.available_stock:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Not enough available stock"
