@@ -1,8 +1,9 @@
+import enum
 from typing import Annotated
 
 from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncAttrs
-from sqlmodel import Field, SQLModel, Relationship, UniqueConstraint
+from sqlmodel import Field, SQLModel, Relationship, UniqueConstraint, Column, Enum
 
 
 class BaseIceCream(SQLModel):
@@ -112,10 +113,16 @@ class OrderItem(SQLModel, table=True):
     ]
     order_id: Annotated[int, Field(foreign_key="orders.id", ondelete="CASCADE")]
     quantity: int
-    total_price: float  # to freeze the total amount at the point of sell
+    total_price: float  # to freeze the total amount at the point of sale
 
     icecream: IceCream | None = Relationship(back_populates="order_items")
     order: "Order" = Relationship(back_populates="items")
+
+
+class OrderStatus(enum.Enum):
+    PENDING = "PENDING"
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
 
 
 class Order(SQLModel, table=True):
@@ -123,17 +130,29 @@ class Order(SQLModel, table=True):
 
     id: Annotated[int | None, Field(primary_key=True)] = None
     user_id: Annotated[int, Field(foreign_key="users.id", ondelete="CASCADE")]
-    status: str
+    status: Annotated[OrderStatus, Field(sa_column=Column(Enum(OrderStatus)))]
 
     items: list[OrderItem] = Relationship(back_populates="order", cascade_delete=True)
     user: User = Relationship(back_populates="orders")
     payment: "Payment" = Relationship(back_populates="order")
 
+    @property
+    def amount(self) -> float:
+        return sum(item.total_price for item in self.items)
 
-class Payment(SQLModel, table=True):
-    __tablename__ = "payments"
 
-    id: Annotated[int | None, Field(primary_key=True)] = None
+class PaymentMethod(enum.Enum):
+    CASH = "CASH"
+    CARD = "CARD"
+
+
+class PaymentStatus(enum.Enum):
+    PENDING = "PENDING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+
+class BasePayment(SQLModel):
     # Do not delete payments at all cost, for audit purposes.
     order_id: Annotated[
         int | None,
@@ -141,8 +160,19 @@ class Payment(SQLModel, table=True):
     ]
     # Can't delete a user without backing-up the payments pre-delete first.
     user_id: Annotated[int, Field(foreign_key="users.id", ondelete="RESTRICT")]
-    status: str
+    status: Annotated[PaymentStatus, Field(sa_column=Column(Enum(PaymentStatus)))]
     amount: float  # should match the order total
+    method: Annotated[PaymentMethod, Field(sa_column=Column(Enum(PaymentMethod)))]
+
+
+class Payment(BasePayment, table=True):
+    __tablename__ = "payments"
+
+    id: Annotated[int | None, Field(primary_key=True)] = None
 
     order: Order | None = Relationship(back_populates="payment")
     user: User = Relationship(back_populates="payments")
+
+
+class RetrievePayment(BasePayment):
+    id: int

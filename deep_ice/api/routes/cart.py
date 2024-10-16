@@ -25,7 +25,7 @@ async def _ensure_cart(session: AsyncSession, *, user_id: int) -> Cart:
         .where(Cart.user_id == user_id)
         .options(selectinload(Cart.items).selectinload(CartItem.icecream))
     )
-    cart = (await session.exec(statement)).first()
+    cart = (await session.exec(statement)).one_or_none()
     if not cart:
         cart = Cart(user_id=user_id)
         session.add(cart)
@@ -38,7 +38,7 @@ async def _check_stock(session: AsyncSession, *, cart_item) -> IceCream:
     # Retrieves the icecream from the item in the cart and checks if the added stock
     #  is viable. Then returns the corresponding icecream object.
     query_icecream = select(IceCream).where(IceCream.id == cart_item.icecream_id)
-    icecream = (await session.exec(query_icecream)).first()
+    icecream = (await session.exec(query_icecream)).one_or_none()
     if not icecream:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Icecream does not exist"
@@ -96,7 +96,7 @@ async def update_cart_item(
         .where(Cart.user_id == current_user.id)
         .options(selectinload(CartItem.icecream))
     )
-    cart_item: CartItem = (await session.exec(query_cart_item)).first()
+    cart_item: CartItem = (await session.exec(query_cart_item)).one_or_none()
     if not cart_item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Item does not exist"

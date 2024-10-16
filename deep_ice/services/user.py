@@ -7,7 +7,7 @@ from deep_ice.models import User
 
 async def _get_user_by_email(*, session: AsyncSession, email: str) -> User | None:
     statement = select(User).where(User.email == email)
-    session_user = (await session.exec(statement)).first()
+    session_user = (await session.exec(statement)).one_or_none()
     return session_user
 
 
