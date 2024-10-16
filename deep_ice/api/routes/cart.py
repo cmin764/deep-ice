@@ -30,6 +30,8 @@ async def _ensure_cart(session: AsyncSession, *, user_id: int) -> Cart:
         cart = Cart(user_id=user_id)
         session.add(cart)
         await session.commit()
+        await session.refresh(cart)
+        cart.items = await cart.awaitable_attrs.items
 
     return cart
 
