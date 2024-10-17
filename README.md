@@ -1,6 +1,8 @@
 # Deep Ice
 
-E-commerce platform selling ice cream
+###### E-commerce platform selling ice cream
+
+Check out this [use-case](docs/use-case.md) to see how to quickly order some icecream.
 
 ## Run
 
@@ -17,7 +19,7 @@ Now go to http://localhost/docs to see the API docs. You can test it right in th
 > - username: _\<e-mail address\>_ (`cmin764@gmail.com`)
 > - password: _\<mocked password\>_ (`cosmin-password`)
 
-To bring the stack down and cleanup images:
+To bring the stack down and cleanup resources:
 
 ```console
 docker-compose down --rmi all --volumes --remove-orphans
@@ -59,4 +61,4 @@ uv run ruff check deep_ice
 uv run mypy deep_ice
 ```
 
-Check this [ToDo](docs/TODO.md) items list for further improvements and known caveats.
+Check this [ToDo](docs/TODO.md) list for further improvements and known caveats.
