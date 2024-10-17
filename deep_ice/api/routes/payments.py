@@ -23,11 +23,9 @@ from deep_ice.services.payment import payment_service, PaymentError
 router = APIRouter()
 
 
-async def _make_order_from_cart(
-    session: AsyncSession, cart: Cart, *, user_id: int
-) -> Order:
+async def _make_order_from_cart(session: AsyncSession, cart: Cart) -> Order:
     # Create and save an order out of the current cart and return it for later usage.
-    order = Order(user_id=user_id, status=OrderStatus.PENDING)
+    order = Order(user_id=cart.user_id, status=OrderStatus.PENDING)
     session.add(order)
     await session.commit()
     await session.refresh(order)
@@ -97,7 +95,7 @@ async def make_payment(
 
     # Items are available and ready to be sold, make the order and pay for it.
     try:
-        order = await _make_order_from_cart(session, cart, user_id=current_user.id)
+        order = await _make_order_from_cart(session, cart)
         payment_status = await payment_service.make_payment(
             order.id, order.amount, method=method, session=session
         )
@@ -125,4 +123,6 @@ async def make_payment(
         return payment
 
 
-# TODO(cmin764): Implement payments and orders retrieval endpoints.
+@router.get("", response_model=list[RetrievePayment])
+async def get_payments(current_user: CurrentUserDep):
+    return await current_user.awaitable_attrs.payments
