@@ -2,13 +2,13 @@ import pytest
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
-from deep_ice.models import (Order, OrderItem, OrderStatus, PaymentMethod,
-                             PaymentStatus)
+from deep_ice.models import Order, OrderItem, OrderStatus, PaymentMethod, PaymentStatus
 
 
+@pytest.mark.parametrize("method", list(PaymentMethod))
 @pytest.mark.anyio
-async def test_make_cash_payment(session, auth_client, cart_items, initial_data):
-    response = await auth_client.post("/v1/payments", json={"method": "CASH"})
+async def test_make_payment(session, auth_client, cart_items, initial_data, method):
+    response = await auth_client.post("/v1/payments", json={"method": method.value})
     assert response.status_code == 201
     data = response.json()
 
@@ -37,4 +37,4 @@ async def test_make_cash_payment(session, auth_client, cart_items, initial_data)
     response = await auth_client.get("/v1/payments")
     assert response.status_code == 200
     data = response.json()
-    assert data[0]["method"] == PaymentMethod.CASH.value
+    assert data[0]["method"] == method.value

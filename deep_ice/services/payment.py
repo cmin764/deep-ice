@@ -58,7 +58,7 @@ class PaymentServiceStub:
             session: The SQLAlchemy session object.
 
         Returns:
-            An value indicating the payment status (either `success` or `failed`).
+            A value indicating the payment status (either `SUCCESS` or `FAILED`).
         """
         print(
             f"Initiating {method.value} payment for order {order_id}"

@@ -39,7 +39,7 @@ line-length = 88
 
 [tool.flake8]
 # Check that this is aligned with your other tools like Black
-max-line-length = 120
+max-line-length = 88
 exclude = [
     # No need to traverse our git directory
     ".git",
