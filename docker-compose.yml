@@ -4,8 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: deep_ice_app
-    volumes:
-      - .:/app
     ports:
       - "80:80"
     environment:
