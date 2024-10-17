@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
-from deep_ice.models import PaymentStatus, Order, OrderStatus, OrderItem
+from deep_ice.models import PaymentStatus, Order, OrderStatus, OrderItem, PaymentMethod
 
 
 @pytest.mark.anyio
@@ -32,3 +32,8 @@ async def test_make_cash_payment(session, auth_client, cart_items, initial_data)
         before = get_icecream(item.icecream.flavor)["stock"]
         after = item.icecream.stock
         assert after == before - item.quantity
+
+    response = await auth_client.get("/v1/payments")
+    assert response.status_code == 200
+    data = response.json()
+    assert data[0]["method"] == PaymentMethod.CASH.value

@@ -125,20 +125,28 @@ class OrderStatus(enum.Enum):
     CANCELLED = "CANCELLED"
 
 
-class Order(SQLModel, AsyncAttrs, table=True):
-    __tablename__ = "orders"
-
-    id: Annotated[int | None, Field(primary_key=True)] = None
+class BaseOrder(SQLModel):
     user_id: Annotated[int, Field(foreign_key="users.id", ondelete="CASCADE")]
     status: Annotated[OrderStatus, Field(sa_column=Column(Enum(OrderStatus)))]
 
-    items: list[OrderItem] = Relationship(back_populates="order", cascade_delete=True)
+
+class Order(BaseOrder, AsyncAttrs, table=True):
+    __tablename__ = "orders"
+
+    id: Annotated[int | None, Field(primary_key=True)] = None
+
     user: User = Relationship(back_populates="orders")
     payment: "Payment" = Relationship(back_populates="order")
+    items: list[OrderItem] = Relationship(back_populates="order", cascade_delete=True)
 
     @property
     def amount(self) -> float:
         return sum(item.total_price for item in self.items)
+
+
+class RetrieveOrder(BaseOrder):
+    id: int
+    amount: float
 
 
 class PaymentMethod(enum.Enum):
