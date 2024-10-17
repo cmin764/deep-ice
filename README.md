@@ -12,10 +12,10 @@ docker-compose up
 
 Now go to http://localhost/docs to see the API docs. You can test it right in the browser.
 
-> For APIs requiring authentication, make sure to click the "Authorize" button first and place inside the
+> For APIs requiring authentication, make sure to click the "Authorize" button first and place inside any of the
 > test [credentials](alembic/versions/ff861c79333d_preregistered_users.py) as following:
-> - username: e-mail address
-> - password: mocked password
+> - username: _\<e-mail address\>_ (`cmin764@gmail.com`)
+> - password: _\<mocked password\>_ (`cosmin-password`)
 
 To bring the stack down and cleanup images:
 
@@ -25,7 +25,7 @@ docker-compose down --rmi all --volumes --remove-orphans
 
 ## Development
 
-Ensure you have `uv` installed, then in the project dir run the following below to install and run the API server.
+Ensure you have Python 3 and `uv` installed, then in the project dir run the following below to install dependencies and run the API server.
 
 ```console
 uv sync

@@ -11,7 +11,7 @@ Critical features and behaviour that isn't met yet.
 
 ## Developer Experience
 
-Nice to have improving the DX and aiding codebase robustness.
+Nice to have features improving the DX and aiding codebase robustness.
 
 - [ ] Invoke commands for running jobs easier, like: linting & formatting, sorting deps, testing, running the server,
   migrations etc.
