@@ -2,7 +2,8 @@ import pytest
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
-from deep_ice.models import PaymentStatus, Order, OrderStatus, OrderItem, PaymentMethod
+from deep_ice.models import (Order, OrderItem, OrderStatus, PaymentMethod,
+                             PaymentStatus)
 
 
 @pytest.mark.anyio

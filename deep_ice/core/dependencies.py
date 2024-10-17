@@ -10,7 +10,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from deep_ice.core import security
 from deep_ice.core.config import settings
 from deep_ice.core.database import get_async_session
-from deep_ice.models import User, TokenPayload
+from deep_ice.models import TokenPayload, User
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/access-token"
