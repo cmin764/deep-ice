@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, HTTPException, status, Response
+from fastapi import APIRouter, Body, HTTPException, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -10,10 +10,10 @@ from deep_ice.core.dependencies import CurrentUserDep, SessionDep
 from deep_ice.models import (
     Cart,
     CartItem,
-    RetrieveCart,
     CreateCartItem,
-    RetrieveCartItem,
     IceCream,
+    RetrieveCart,
+    RetrieveCartItem,
 )
 
 router = APIRouter()

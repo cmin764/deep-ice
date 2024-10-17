@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from deep_ice.models import PaymentMethod, PaymentStatus, Order, OrderStatus, OrderItem
+from deep_ice.models import Order, OrderItem, OrderStatus, PaymentMethod, PaymentStatus
 
 
 class PaymentError(Exception):

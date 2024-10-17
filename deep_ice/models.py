@@ -3,7 +3,7 @@ from typing import Annotated
 
 from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncAttrs
-from sqlmodel import Field, SQLModel, Relationship, UniqueConstraint, Column, Enum
+from sqlmodel import Column, Enum, Field, Relationship, SQLModel, UniqueConstraint
 
 
 class BaseIceCream(SQLModel):

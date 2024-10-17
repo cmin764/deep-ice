@@ -1,9 +1,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload
-from sqlmodel import insert
-from sqlmodel import select
+from sqlmodel import insert, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.pool import StaticPool
 
@@ -11,7 +10,7 @@ from deep_ice import app
 from deep_ice.api.routes.payments import _make_order_from_cart
 from deep_ice.core.database import get_async_session
 from deep_ice.core.security import get_password_hash
-from deep_ice.models import SQLModel, IceCream, User, Cart, CartItem, Order
+from deep_ice.models import Cart, CartItem, IceCream, Order, SQLModel, User
 
 
 # Run tests with `asyncio` only.

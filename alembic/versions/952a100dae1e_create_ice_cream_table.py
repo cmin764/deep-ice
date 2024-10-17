@@ -10,9 +10,9 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 import sqlmodel.sql.sqltypes
-from alembic import op
 from sqlmodel import Session, insert
 
+from alembic import op
 from deep_ice.models import IceCream
 
 # revision identifiers, used by Alembic.
