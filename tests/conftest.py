@@ -2,13 +2,14 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlmodel import insert
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.pool import StaticPool
 
 from deep_ice import app
 from deep_ice.core.database import get_async_session
 from deep_ice.core.security import get_password_hash
-from deep_ice.models import SQLModel, IceCream, User
+from deep_ice.models import SQLModel, IceCream, User, Cart, CartItem
 
 
 # Run tests with `asyncio` only.
@@ -111,3 +112,33 @@ async def auth_token(initial_data: dict, client: AsyncClient) -> dict:
 async def auth_client(client: AsyncClient, auth_token: dict):
     client.headers.update(auth_token)
     yield client
+
+
+@pytest.fixture
+async def cart_items(session: AsyncSession, initial_data: dict):
+    user = (
+        await session.exec(select(User).where(User.email == "cmin764@gmail.com"))
+    ).one()
+    cart = Cart(user_id=user.id)
+    session.add(cart)
+    await session.commit()
+    await session.refresh(cart)
+
+    items = []
+    for ice_data in initial_data["icecream"]:
+        icecream = (
+            await session.exec(
+                select(IceCream).where(IceCream.flavor == ice_data["flavor"])
+            )
+        ).one()
+        cart_item = CartItem(
+            cart_id=cart.id,
+            icecream_id=icecream.id,
+            quantity=icecream.available_stock // 10,
+        )
+        items.append(cart_item)
+
+    session.add_all(items)
+    await session.commit()
+
+    return items
