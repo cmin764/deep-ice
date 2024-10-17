@@ -2,7 +2,7 @@
 
 ###### E-commerce platform selling ice cream
 
-Check out this [use-case](docs/use-case.md) to see how to quickly order some icecream.
+Check out this [use-case](docs/use-case.md) to see how to quickly order some ice cream.
 
 ## Run
 
