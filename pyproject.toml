@@ -1,6 +1,6 @@
 [project]
 name = "deep-ice"
-version = "1.0.0"
+version = "1.1.0"
 description = "E-commerce platform selling ice cream"
 readme = "README.md"
 requires-python = ">=3.12"
