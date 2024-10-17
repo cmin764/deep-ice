@@ -98,8 +98,8 @@ async def make_payment(
     # Items are available and ready to be sold, make the order and pay for it.
     try:
         order = await _make_order_from_cart(session, cart, user_id=current_user.id)
-        payment_status = payment_service.make_payment(
-            order.id, order.amount, method=method
+        payment_status = await payment_service.make_payment(
+            order.id, order.amount, method=method, session=session
         )
         payment = Payment(
             order_id=order.id,
@@ -121,6 +121,7 @@ async def make_payment(
         )
     else:
         await session.commit()
+        response.status_code = status.HTTP_201_CREATED
         return payment
 
 
