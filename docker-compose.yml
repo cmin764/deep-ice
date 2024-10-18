@@ -12,8 +12,10 @@ services:
       POSTGRES_USER: deep
       POSTGRES_PASSWORD: opinion
       POSTGRES_DB: deep_ice
+      REDIS_HOST: redis
     depends_on:
-      - db
+      - alembic
+      - worker
 
   db:
     image: postgres:latest
@@ -42,5 +44,24 @@ services:
     depends_on:
       - db
 
+  redis:
+    image: redis:alpine
+    container_name: deep_ice_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uv run arq deep_ice.TaskQueue
+    environment:
+      REDIS_HOST: redis
+    depends_on:
+      - redis
+
 volumes:
   postgres_data:
+  redis_data:

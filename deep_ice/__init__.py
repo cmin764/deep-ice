@@ -10,13 +10,16 @@ from deep_ice.core.config import settings
 from deep_ice.services import payment as payment_service
 
 
+redis_settings = RedisSettings(host=settings.REDIS_HOST)
+
+
 def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{route.tags[0]}-{route.name}"
 
 
 @asynccontextmanager
 async def lifespan(fast_app: FastAPI):
-    redis_pool = await create_pool(RedisSettings())
+    redis_pool = await create_pool(redis_settings)
     fast_app.state.redis_pool = redis_pool
     yield
     await redis_pool.close()
@@ -24,7 +27,7 @@ async def lifespan(fast_app: FastAPI):
 
 class TaskQueue:
     functions = [payment_service.make_payment_task]
-    redis_settings = RedisSettings()
+    redis_settings = redis_settings
 
 
 app = FastAPI(

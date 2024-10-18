@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel import insert, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.pool import StaticPool
+from unittest.mock import AsyncMock
 
 from deep_ice import app
 from deep_ice.core.database import get_async_session
