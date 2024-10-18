@@ -32,7 +32,7 @@ def _check_quantities(order, initial_data):
         assert not item.icecream.blocked_quantity
 
 
-@pytest.mark.parametrize("method", [PaymentMethod.CARD])
+@pytest.mark.parametrize("method", [PaymentMethod.CASH])
 @pytest.mark.anyio
 async def test_make_payment(session, auth_client, cart_items, initial_data, method):
     response = await auth_client.post("/v1/payments", json={"method": method.value})

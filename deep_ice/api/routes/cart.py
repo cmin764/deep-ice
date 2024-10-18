@@ -4,39 +4,21 @@ from fastapi import APIRouter, Body, HTTPException, Response, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from deep_ice.core.dependencies import CurrentUserDep, SessionDep
+from deep_ice.core.dependencies import CurrentUserDep, SessionDep, CartServiceDep
 from deep_ice.models import (
     Cart,
     CartItem,
     CreateCartItem,
-    IceCream,
     RetrieveCart,
     RetrieveCartItem,
+    IceCream,
 )
 
 router = APIRouter()
 
 
-async def _ensure_cart(session: AsyncSession, *, user_id: int) -> Cart:
-    statement = (
-        select(Cart)
-        .where(Cart.user_id == user_id)
-        .options(selectinload(Cart.items).selectinload(CartItem.icecream))
-    )
-    cart = (await session.exec(statement)).one_or_none()
-    if not cart:
-        cart = Cart(user_id=user_id)
-        session.add(cart)
-        await session.commit()
-        await session.refresh(cart)
-        cart.items = await cart.awaitable_attrs.items
-
-    return cart
-
-
-async def _check_stock(session: AsyncSession, *, cart_item) -> IceCream:
+async def obtain_icecream(session, cart_item: CartItem) -> IceCream:
     # Retrieves the icecream from the item in the cart and checks if the added stock
     #  is viable. Then returns the corresponding icecream object.
     query_icecream = select(IceCream).where(IceCream.id == cart_item.icecream_id)
@@ -51,14 +33,15 @@ async def _check_stock(session: AsyncSession, *, cart_item) -> IceCream:
         )
     if cart_item.quantity > icecream.available_stock:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Not enough available stock"
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Not enough available stock",
         )
     return icecream
 
 
 @router.get("", response_model=RetrieveCart)
-async def get_cart_items(session: SessionDep, current_user: CurrentUserDep):
-    cart = await _ensure_cart(session, user_id=current_user.id)
+async def get_cart_items(current_user: CurrentUserDep, cart_service: CartServiceDep):
+    cart = await cart_service.ensure_cart(current_user.id)
     return cart
 
 
@@ -66,12 +49,13 @@ async def get_cart_items(session: SessionDep, current_user: CurrentUserDep):
 async def add_item_to_cart(
     session: SessionDep,
     current_user: CurrentUserDep,
+    cart_service: CartServiceDep,
     item: Annotated[CreateCartItem, Body()],
     response: Response,
 ):
-    cart = await _ensure_cart(session, user_id=current_user.id)
+    cart = await cart_service.ensure_cart(current_user.id)
     cart_item = CartItem(cart_id=cart.id, **item.model_dump())
-    icecream = await _check_stock(session, cart_item=cart_item)
+    icecream = await obtain_icecream(session, cart_item=cart_item)
 
     try:
         session.add(cart_item)
@@ -110,7 +94,7 @@ async def update_cart_item(
 
     if quantity:
         cart_item.quantity = quantity
-        await _check_stock(session, cart_item=cart_item)
+        await obtain_icecream(session, cart_item=cart_item)
         session.add(cart_item)
         await session.commit()
         await session.refresh(cart_item)

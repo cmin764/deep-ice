@@ -1,16 +1,16 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.orm import selectinload
 from sqlmodel import insert, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.pool import StaticPool
 
 from deep_ice import app
-from deep_ice.api.routes.payments import _make_order_from_cart
 from deep_ice.core.database import get_async_session
 from deep_ice.core.security import get_password_hash
 from deep_ice.models import Cart, CartItem, IceCream, Order, SQLModel, User
+from deep_ice.services.cart import CartService
+from deep_ice.services.order import OrderService
 
 
 # Run tests with `asyncio` only.
@@ -154,12 +154,9 @@ async def cart_items(
 
 @pytest.fixture
 async def order(session: AsyncSession, cart_items: list[CartItem], user: User) -> Order:
-    statement = (
-        select(Cart)
-        .where(Cart.user_id == user.id)
-        .options(selectinload(Cart.items).selectinload(CartItem.icecream))
-    )
-    cart: Cart = (await session.exec(statement)).one()
-    order = await _make_order_from_cart(session, cart)
+    cart_service = CartService(session)
+    cart = await cart_service.get_cart(user.id)
+    order_service = OrderService(session)
+    order = await order_service.make_order_from_cart(cart)
     await session.commit()
     return order
