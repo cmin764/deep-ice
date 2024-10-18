@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
+from deep_ice import app
 from deep_ice.models import Order, OrderItem, OrderStatus, PaymentMethod, PaymentStatus
 
 
@@ -48,6 +49,9 @@ async def test_make_successful_payment(
     )
     assert data["status"] == expected_payment_status.value
     assert data["amount"] == 111.0
+    if method is PaymentMethod.CARD:
+        enqueue_mock = app.state.redis_pool.enqueue_job
+        enqueue_mock.assert_called_once()
 
     # Any successful payment initiation will trigger an order creation.
     expected_order_status = (

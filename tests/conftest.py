@@ -84,10 +84,11 @@ async def initial_data(session: AsyncSession) -> dict:
 
 
 @pytest.fixture(name="client")
-async def client_fixture(session: AsyncSession):
+async def client_fixture(session: AsyncSession, mocker):
     async def get_session_override():
         yield session
 
+    app.state.redis_pool = mocker.AsyncMock()
     app.dependency_overrides[get_async_session] = get_session_override
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://localhost"
