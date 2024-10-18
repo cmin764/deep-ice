@@ -1,3 +1,10 @@
+x-common-env-vars: &common-env-vars
+  POSTGRES_SERVER: db
+  POSTGRES_USER: deep
+  POSTGRES_PASSWORD: opinion
+  POSTGRES_DB: deep_ice
+  REDIS_HOST: redis
+
 services:
   app:
     build:
@@ -7,12 +14,7 @@ services:
     ports:
       - "80:80"
     environment:
-      POSTGRES_SERVER: db
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: deep
-      POSTGRES_PASSWORD: opinion
-      POSTGRES_DB: deep_ice
-      REDIS_HOST: redis
+      <<: *common-env-vars
     depends_on:
       - alembic
       - worker
@@ -21,9 +23,7 @@ services:
     image: postgres:latest
     container_name: deep_ice_db
     environment:
-      POSTGRES_USER: deep
-      POSTGRES_PASSWORD: opinion
-      POSTGRES_DB: deep_ice
+      <<: *common-env-vars
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -36,11 +36,7 @@ services:
     container_name: deep_ice_alembic
     command: uv run alembic upgrade head
     environment:
-      POSTGRES_SERVER: db
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: deep
-      POSTGRES_PASSWORD: opinion
-      POSTGRES_DB: deep_ice
+      <<: *common-env-vars
     depends_on:
       - db
 
@@ -58,7 +54,7 @@ services:
       dockerfile: Dockerfile
     command: uv run arq deep_ice.TaskQueue
     environment:
-      REDIS_HOST: redis
+      <<: *common-env-vars
     depends_on:
       - redis
 
