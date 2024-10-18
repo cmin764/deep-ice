@@ -1,6 +1,6 @@
 [project]
 name = "deep-ice"
-version = "1.0.0"
+version = "1.1.0"
 description = "E-commerce platform selling ice cream"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -14,6 +14,7 @@ dependencies = [
     "greenlet>=3.1.1",
     "passlib[bcrypt]>=1.7.4",
     "pyjwt>=2.9.0",
+    "arq>=0.26.1",
 ]
 
 [tool.uv]
@@ -26,6 +27,7 @@ dev-dependencies = [
     "mypy>=1.12.0",
     "pep8>=1.7.1",
     "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
     "pytest>=8.3.3",
     "ruff>=0.6.9",
     "types-passlib>=1.7.7.20240819",
@@ -39,7 +41,7 @@ line-length = 88
 
 [tool.flake8]
 # Check that this is aligned with your other tools like Black
-max-line-length = 120
+max-line-length = 88
 exclude = [
     # No need to traverse our git directory
     ".git",

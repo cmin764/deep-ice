@@ -6,7 +6,7 @@ A list of future improvements to consider the solution complete.
 
 Critical features and behaviour that isn't met yet.
 
-- [ ] Deferring long-running payments with [ARQ](https://arq-docs.helpmanual.io/).
+- [x] Deferring long-running payments with [ARQ](https://arq-docs.helpmanual.io/).
 - [ ] Storing stats in Redis which can be later retrieved for analytics purposes.
 
 ## Developer Experience
