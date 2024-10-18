@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from deep_ice.core.dependencies import CurrentUserDep, SessionDep
-from deep_ice.models import PaymentMethod, RetrievePayment
+from deep_ice.models import PaymentMethod, RetrievePayment, PaymentStatus
 from deep_ice.services.cart import CartService
 from deep_ice.services.order import OrderService
 from deep_ice.services.payment import PaymentError, PaymentService, payment_stub
@@ -59,7 +59,11 @@ async def make_payment(
         )
     else:
         await session.commit()
-        response.status_code = status.HTTP_201_CREATED
+        response.status_code = (
+            status.HTTP_202_ACCEPTED
+            if payment.status == PaymentStatus.PENDING
+            else status.HTTP_201_CREATED
+        )
         return payment
 
 
