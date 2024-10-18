@@ -4,10 +4,31 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Literal
 
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from deep_ice.core.database import get_async_session
 from deep_ice.models import PaymentStatus, Order, PaymentMethod, Payment
 from deep_ice.services.order import OrderService
+
+
+async def make_payment_task(
+    ctx, order_id: int, amount: float, *, method: PaymentMethod, _stub_dict: dict
+) -> str:
+    stub = PaymentStub(**_stub_dict)
+    status = await stub.make_payment(order_id, amount, method=method)
+
+    async for session in get_async_session():
+        payment_service = PaymentService(session, stub)
+        await payment_service.set_order_payment_status(order_id, status)
+        order_service = OrderService(session)
+        if status is PaymentStatus.SUCCESS:
+            await order_service.confirm_order(order_id)
+        elif status is PaymentStatus.FAILED:
+            await order_service.cancel_order(order_id)
+        await session.commit()
+
+    return status.value
 
 
 class PaymentError(Exception):
@@ -94,8 +115,15 @@ class PaymentStub(PaymentInterface):
     async def make_payment_async(
         self, order_id: int, amount: float, *, method: PaymentMethod
     ) -> Literal[PaymentStatus.PENDING]:
-        # TODO(cmin764): Defer this to a task queue.
-        await self.make_payment(order_id, amount, method=method)
+        from deep_ice import app
+
+        await app.state.redis_pool.enqueue_job(
+            make_payment_task.__name__,
+            order_id,
+            amount,
+            method=method,
+            _stub_dict=self.__dict__,
+        )
         return PaymentStatus.PENDING
 
 
@@ -133,6 +161,12 @@ class PaymentService:
             await self._order_service.cancel_order(order.id)
 
         return payment
+
+    async def set_order_payment_status(self, order_id: int, status: PaymentStatus):
+        query_payment = select(Payment).where(Payment.order_id == order_id)
+        payment: Payment = (await self._session.exec(query_payment)).one()
+        payment.status = status
+        self._session.add(payment)
 
 
 payment_stub = PaymentStub(1, 3)

@@ -34,7 +34,9 @@ def _check_quantities(order, initial_data):
 
 @pytest.mark.parametrize("method", list(PaymentMethod))
 @pytest.mark.anyio
-async def test_make_payment(session, auth_client, cart_items, initial_data, method):
+async def test_make_successful_payment(
+    session, auth_client, cart_items, initial_data, method
+):
     # Cash payments are instantly triggered, since they don't wait for a confirmation,
     #  while card payments are non-blocking and returning instantly with pending
     #  status (meanwhile they are processed in the background).

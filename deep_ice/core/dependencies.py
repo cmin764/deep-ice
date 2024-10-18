@@ -13,7 +13,6 @@ from deep_ice.core.database import get_async_session
 from deep_ice.models import TokenPayload, User
 from deep_ice.services.cart import CartService
 
-
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/access-token"
 )

@@ -37,7 +37,10 @@ class CartService:
         for item in cart.items:
             if item.quantity > item.icecream.available_stock:
                 item.quantity = item.icecream.available_stock
-                self._session.add(item)
+                if item.quantity:
+                    self._session.add(item)
+                else:
+                    await self._session.delete(item)
                 cart_ok = False
         if not cart_ok:
             await self._session.commit()
