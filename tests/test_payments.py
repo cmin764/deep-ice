@@ -38,11 +38,12 @@ def _check_quantities(order, initial_data):
 async def test_make_successful_payment(
     session, auth_client, cart_items, initial_data, method
 ):
-    # Cash payments are instantly triggered, since they don't wait for a confirmation,
-    #  while card payments are non-blocking and returning instantly with pending
-    #  status (meanwhile they are processed in the background).
+    # Cash payments are instantly triggered (201), since they don't wait for a
+    #  confirmation, while card payments are non-blocking and returning instantly with
+    #  pending (202) status (as they are processed in the background).
     response = await auth_client.post("/v1/payments", json={"method": method.value})
-    assert response.status_code == 201
+    status_code = 201 if method is PaymentMethod.CASH else 202
+    assert response.status_code == status_code
     data = response.json()
     expected_payment_status = (
         PaymentStatus.SUCCESS if method is PaymentMethod.CASH else PaymentStatus.PENDING
