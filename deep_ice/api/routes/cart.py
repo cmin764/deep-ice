@@ -10,9 +10,9 @@ from deep_ice.models import (
     Cart,
     CartItem,
     CreateCartItem,
+    IceCream,
     RetrieveCart,
     RetrieveCartItem,
-    IceCream,
 )
 
 router = APIRouter()
@@ -33,8 +33,7 @@ async def obtain_icecream(session, cart_item: CartItem) -> IceCream:
         )
     if cart_item.quantity > icecream.available_stock:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Not enough available stock",
+            status_code=status.HTTP_409_CONFLICT, detail="Not enough available stock"
         )
     return icecream
 
