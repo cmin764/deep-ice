@@ -1,37 +1,65 @@
 import asyncio
 import random
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Literal
 
-from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from deep_ice.models import Order, OrderItem, OrderStatus, PaymentMethod, PaymentStatus
+from deep_ice.core.database import get_async_session
+from deep_ice.models import PaymentStatus, Order, PaymentMethod, Payment
+from deep_ice.services.order import OrderService
+
+
+async def make_payment_task(
+    ctx, order_id: int, amount: float, *, method: PaymentMethod, _stub_dict: dict
+) -> str:
+    stub = PaymentStub(**_stub_dict)
+    status = await stub.make_payment(order_id, amount, method=method)
+
+    async for session in get_async_session():
+        payment_service = PaymentService(session, stub)
+        await payment_service.set_order_payment_status(order_id, status)
+        order_service = OrderService(session)
+        if status is PaymentStatus.SUCCESS:
+            await order_service.confirm_order(order_id)
+        elif status is PaymentStatus.FAILED:
+            await order_service.cancel_order(order_id)
+        await session.commit()
+
+    return status.value
 
 
 class PaymentError(Exception):
     """Base class for immediate payment failures. (like invalid card info)"""
 
 
-async def confirm_order(session: AsyncSession, order_id: int):
-    order = (
-        await session.exec(
-            select(Order)
-            .where(Order.id == order_id)
-            .options(selectinload(Order.items).selectinload(OrderItem.icecream))
-        )
-    ).one()
-    order.status = OrderStatus.CONFIRMED
-    session.add(order)
+class PaymentInterface(ABC):
 
-    for item in order.items:
-        item.icecream.stock -= item.quantity
-        item.icecream.blocked_quantity -= item.quantity
-    session.add_all(order.items)
+    @abstractmethod
+    async def make_payment(
+        self,
+        order_id: int,
+        amount: float,
+        *,
+        method: PaymentMethod,
+    ) -> PaymentStatus:
+        """Blocking method for making a payment."""
+
+    @abstractmethod
+    async def make_payment_async(
+        self,
+        order_id: int,
+        amount: float,
+        *,
+        method: PaymentMethod,
+    ) -> Literal[PaymentStatus.PENDING]:
+        """Non-blocking method for making a payment."""
 
 
 @dataclass
-class PaymentServiceStub:
+class PaymentStub(PaymentInterface):
     """Dummy payment service which emulates IO blocking during order payment."""
 
     min_delay: int
@@ -44,10 +72,9 @@ class PaymentServiceStub:
         amount: float,
         *,
         method: PaymentMethod,
-        session: AsyncSession,
     ) -> PaymentStatus:
-        """Simulate a simple payment service that takes some time to process a payment
-        and then returns a status.
+        """Simulate a simple payment transaction that takes some time to process it
+        and then return a status.
         This is blocking and the status will either be `SUCCESS` or `FAILED` when it
         finishes.
 
@@ -55,10 +82,9 @@ class PaymentServiceStub:
             order_id: The ID of the order for which payment is being made.
             amount: The total amount to be charged. (in USD)
             method: The payment method to use. (CASH/CARD)
-            session: The SQLAlchemy session object.
 
         Returns:
-            An value indicating the payment status (either `success` or `failed`).
+            A value indicating the payment status (either `SUCCESS` or `FAILED`).
         """
         print(
             f"Initiating {method.value} payment for order {order_id}"
@@ -68,7 +94,6 @@ class PaymentServiceStub:
         if method is PaymentMethod.CASH:
             # Cash payments are considered instant since the order has to be delivered
             #  first before being paid for. (paid at delivery time)
-            await confirm_order(session, order_id)
             return PaymentStatus.SUCCESS
 
         # Simulate payment processing times and potential for failure for card ones.
@@ -85,9 +110,63 @@ class PaymentServiceStub:
             payment_result = PaymentStatus.SUCCESS
 
         print(f"Payment result: {payment_result}")
-        if payment_result is PaymentStatus.SUCCESS:
-            await confirm_order(session, order_id)
         return payment_result
 
+    async def make_payment_async(
+        self, order_id: int, amount: float, *, method: PaymentMethod
+    ) -> Literal[PaymentStatus.PENDING]:
+        from deep_ice import app
 
-payment_service = PaymentServiceStub(1, 3)
+        await app.state.redis_pool.enqueue_job(
+            make_payment_task.__name__,
+            order_id,
+            amount,
+            method=method,
+            _stub_dict=self.__dict__,
+        )
+        return PaymentStatus.PENDING
+
+
+class PaymentService:
+    """Manage payments in relation to orders."""
+
+    def __init__(self, session: AsyncSession, payment_processor: PaymentInterface):
+        self._session = session
+        self._payment_processor = payment_processor
+
+        self._order_service = OrderService(self._session)
+
+    async def make_payment_from_order(
+        self, order: Order, *, method: PaymentMethod
+    ) -> Payment:
+        make_payment = {
+            PaymentMethod.CASH: self._payment_processor.make_payment,
+            PaymentMethod.CARD: self._payment_processor.make_payment_async,
+        }
+        payment_status = await make_payment[method](
+            order.id, order.amount, method=method
+        )
+        payment = Payment(
+            order_id=order.id,
+            user_id=order.user_id,
+            amount=order.amount,
+            status=payment_status,
+            method=method,
+        )
+        self._session.add(payment)
+
+        if payment_status is PaymentStatus.SUCCESS:
+            await self._order_service.confirm_order(order.id)
+        elif payment_status is PaymentStatus.FAILED:
+            await self._order_service.cancel_order(order.id)
+
+        return payment
+
+    async def set_order_payment_status(self, order_id: int, status: PaymentStatus):
+        query_payment = select(Payment).where(Payment.order_id == order_id)
+        payment: Payment = (await self._session.exec(query_payment)).one()
+        payment.status = status
+        self._session.add(payment)
+
+
+payment_stub = PaymentStub(1, 3)

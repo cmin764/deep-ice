@@ -11,14 +11,13 @@ from deep_ice.core import security
 from deep_ice.core.config import settings
 from deep_ice.core.database import get_async_session
 from deep_ice.models import TokenPayload, User
+from deep_ice.services.cart import CartService
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/access-token"
 )
 
-
 SessionDep = Annotated[AsyncSession, Depends(get_async_session)]
-
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
 
 
@@ -45,4 +44,9 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     return user
 
 
+async def get_cart_service(session: SessionDep) -> CartService:
+    return CartService(session)
+
+
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
+CartServiceDep = Annotated[CartService, Depends(get_cart_service)]
