@@ -112,7 +112,7 @@ async def auth_token(initial_data: dict, client: AsyncClient) -> dict:
 @pytest.fixture
 async def auth_client(client: AsyncClient, auth_token: dict):
     client.headers.update(auth_token)
-    yield client
+    return client
 
 
 @pytest.fixture
