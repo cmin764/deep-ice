@@ -1,5 +1,6 @@
 import secrets
 
+from arq.connections import RedisSettings
 from pydantic import PostgresDsn, computed_field
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -43,3 +44,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()  # type: ignore
+redis_settings = RedisSettings(host=settings.REDIS_HOST)

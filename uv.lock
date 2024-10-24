@@ -180,6 +180,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
+    { name = "redis" },
     { name = "sqlmodel" },
 ]
 
@@ -210,6 +211,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.9.2" },
     { name = "pydantic-settings", specifier = ">=2.5.2" },
     { name = "pyjwt", specifier = ">=2.9.0" },
+    { name = "redis" },
     { name = "sqlmodel", specifier = ">=0.0.22" },
 ]
 

@@ -4,13 +4,15 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from deep_ice.models import Order, OrderItem, OrderStatus, Cart
+from deep_ice.services.stats import StatsInterface
 
 
 class OrderService:
     """Manage orders, their status and ice cream stock implications."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, *, stats_service: StatsInterface):
         self._session = session
+        self._stats_service = stats_service
 
     async def _get_order(self, order_id: int) -> Order:
         order = (
@@ -30,6 +32,10 @@ class OrderService:
         for item in order.items:
             item.icecream.stock -= item.quantity
             item.icecream.blocked_quantity -= item.quantity
+            await self._stats_service.acknowledge_icecream_demand(
+                item.icecream_id, name=item.icecream.name, quantity=item.quantity
+            )
+
         self._session.add_all(order.items)
 
     async def cancel_order(self, order_id: int):

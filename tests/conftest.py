@@ -1,10 +1,11 @@
+from unittest.mock import AsyncMock
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel import insert, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.pool import StaticPool
-from unittest.mock import AsyncMock
 
 from deep_ice import app
 from deep_ice.core.database import get_async_session
@@ -12,12 +13,20 @@ from deep_ice.core.security import get_password_hash
 from deep_ice.models import Cart, CartItem, IceCream, Order, SQLModel, User
 from deep_ice.services.cart import CartService
 from deep_ice.services.order import OrderService
+from deep_ice.services.stats import stats_service
 
 
 # Run tests with `asyncio` only.
 @pytest.fixture(scope="session")
 def anyio_backend():
     return "asyncio"
+
+
+@pytest.fixture
+def redis_client(mocker):
+    return mocker.patch(
+        "deep_ice.services.stats.stats_service._client", new_callable=AsyncMock
+    )
 
 
 @pytest.fixture(name="session")
@@ -158,7 +167,7 @@ async def cart_items(
 async def order(session: AsyncSession, cart_items: list[CartItem], user: User) -> Order:
     cart_service = CartService(session)
     cart = await cart_service.get_cart(user.id)
-    order_service = OrderService(session)
+    order_service = OrderService(session, stats_service=stats_service)
     order = await order_service.make_order_from_cart(cart)
     await session.commit()
     return order

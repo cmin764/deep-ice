@@ -1,16 +1,12 @@
 from contextlib import asynccontextmanager
 
 from arq import create_pool
-from arq.connections import RedisSettings
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
 from deep_ice.api import api_router
-from deep_ice.core.config import settings
+from deep_ice.core.config import settings, redis_settings
 from deep_ice.services import payment as payment_service
-
-
-redis_settings = RedisSettings(host=settings.REDIS_HOST)
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
