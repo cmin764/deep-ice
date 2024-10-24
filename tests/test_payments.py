@@ -1,3 +1,5 @@
+from unittest.mock import call
+
 import pytest
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
@@ -33,10 +35,19 @@ def _check_quantities(order, initial_data):
         assert not item.icecream.blocked_quantity
 
 
+def _check_stats(redis_client):
+    expected_calls = [
+        call("POPULAR_ICECREAM", 10, "Vanilla:1"),
+        call("POPULAR_ICECREAM", 20, "Chocolate:2"),
+        call("POPULAR_ICECREAM", 5, "Strawberry:3"),
+    ]
+    redis_client.zincrby.assert_has_calls(expected_calls)
+
+
 @pytest.mark.parametrize("method", list(PaymentMethod))
 @pytest.mark.anyio
 async def test_make_successful_payment(
-    session, auth_client, cart_items, initial_data, method
+    redis_client, session, auth_client, cart_items, initial_data, method
 ):
     # Cash payments are instantly triggered (201), since they don't wait for a
     #  confirmation, while card payments are non-blocking and returning instantly with
@@ -65,6 +76,7 @@ async def test_make_successful_payment(
     )
     if db_order.status is OrderStatus.CONFIRMED:
         _check_quantities(db_order, initial_data)
+        _check_stats(redis_client)
 
     # The list of payments contain our just-made payment.
     response = await auth_client.get("/v1/payments")

@@ -9,6 +9,7 @@ from deep_ice.models import PaymentMethod, RetrievePayment, PaymentStatus
 from deep_ice.services.cart import CartService
 from deep_ice.services.order import OrderService
 from deep_ice.services.payment import PaymentError, PaymentService, payment_stub
+from deep_ice.services.stats import stats_service
 
 router = APIRouter()
 
@@ -38,7 +39,7 @@ async def make_payment(
         return RedirectResponse(url=request.url_for("get_cart_items"))
 
     # Items are available and ready to be sold, make the order and pay for it.
-    order_service = OrderService(session)
+    order_service = OrderService(session, stats_service=stats_service)
     payment_service = PaymentService(session, payment_processor=payment_stub)
     order = None
     try:
