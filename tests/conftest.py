@@ -108,7 +108,7 @@ async def client_fixture(session: AsyncSession, mocker):
 
 
 @pytest.fixture
-async def auth_token(initial_data: dict, client: AsyncClient) -> dict:
+async def auth_token(initial_data: dict, client: AsyncClient) -> str:
     # Authenticate and get the token.
     form_data = {"username": "cmin764@gmail.com", "password": "cosmin-password"}
     response = await client.post("/v1/auth/access-token", data=form_data)
@@ -117,12 +117,12 @@ async def auth_token(initial_data: dict, client: AsyncClient) -> dict:
     # Extract the token from the response and place it in the auth header.
     token_data = response.json()
     token = token_data["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    return token
 
 
 @pytest.fixture
-async def auth_client(client: AsyncClient, auth_token: dict):
-    client.headers.update(auth_token)
+async def auth_client(client: AsyncClient, auth_token: str):
+    client.headers.update({"Authorization": f"Bearer {auth_token}"})
     return client
 
 
