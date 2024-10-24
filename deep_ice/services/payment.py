@@ -20,9 +20,11 @@ async def make_payment_task(
     status = await stub.make_payment(order_id, amount, method=method)
 
     async for session in get_async_session():
-        payment_service = PaymentService(session, payment_processor=stub)
-        await payment_service.set_order_payment_status(order_id, status)
         order_service = OrderService(session, stats_service=stats_service)
+        payment_service = PaymentService(
+            session, order_service=order_service, payment_processor=stub
+        )
+        await payment_service.set_order_payment_status(order_id, status)
         if status is PaymentStatus.SUCCESS:
             await order_service.confirm_order(order_id)
         elif status is PaymentStatus.FAILED:
@@ -131,11 +133,16 @@ class PaymentStub(PaymentInterface):
 class PaymentService:
     """Manage payments in relation to orders."""
 
-    def __init__(self, session: AsyncSession, *, payment_processor: PaymentInterface):
+    def __init__(
+        self,
+        session: AsyncSession,
+        *,
+        order_service: OrderService,
+        payment_processor: PaymentInterface,
+    ):
         self._session = session
+        self._order_service = order_service
         self._payment_processor = payment_processor
-
-        self._order_service = OrderService(self._session, stats_service=stats_service)
 
     async def make_payment_from_order(
         self, order: Order, *, method: PaymentMethod
