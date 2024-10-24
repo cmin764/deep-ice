@@ -12,7 +12,7 @@ class StatsInterface(ABC):
     async def acknowledge_icecream_demand(
         self, icecream_id: int, *, name: str, quantity: int
     ):
-        """Count the number of successful ordered items of a given product."""
+        """Count the number of successfully ordered items of a given product."""
 
     @abstractmethod
     async def get_top_icecream(self, size: int = 1) -> OrderedDict[str, int]:

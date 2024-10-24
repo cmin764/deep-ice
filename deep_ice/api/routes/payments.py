@@ -40,7 +40,9 @@ async def make_payment(
 
     # Items are available and ready to be sold, make the order and pay for it.
     order_service = OrderService(session, stats_service=stats_service)
-    payment_service = PaymentService(session, payment_processor=payment_stub)
+    payment_service = PaymentService(
+        session, order_service=order_service, payment_processor=payment_stub
+    )
     order = None
     try:
         order = await order_service.make_order_from_cart(cart)
