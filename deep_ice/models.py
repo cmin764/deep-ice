@@ -101,13 +101,7 @@ class RetrieveCart(BaseCart):
     items: list[RetrieveCartItem] = []
 
 
-class OrderItem(SQLModel, table=True):
-    __tablename__ = "orderitems"
-    __table_args__ = (
-        UniqueConstraint("order_id", "icecream_id", name="order_icecream_id"),
-    )
-
-    id: Annotated[int | None, Field(primary_key=True)] = None
+class BaseOrderItem(SQLModel):
     icecream_id: Annotated[
         int | None, Field(foreign_key="icecream.id", ondelete="SET NULL", nullable=True)
     ]
@@ -115,8 +109,22 @@ class OrderItem(SQLModel, table=True):
     quantity: int
     total_price: float  # to freeze the total amount at the point of sale
 
+
+class OrderItem(BaseOrderItem, table=True):
+    __tablename__ = "orderitems"
+    __table_args__ = (
+        UniqueConstraint("order_id", "icecream_id", name="order_icecream_id"),
+    )
+
+    id: Annotated[int | None, Field(primary_key=True)] = None
+
     icecream: IceCream | None = Relationship(back_populates="order_items")
     order: "Order" = Relationship(back_populates="items")
+
+
+class RetrieveOrderItem(BaseOrderItem):
+    id: int
+    icecream: RetrieveIceCream
 
 
 class OrderStatus(enum.Enum):
@@ -147,6 +155,7 @@ class Order(BaseOrder, AsyncAttrs, table=True):
 class RetrieveOrder(BaseOrder):
     id: int
     amount: float
+    items: list[RetrieveOrderItem]
 
 
 class PaymentMethod(enum.Enum):
