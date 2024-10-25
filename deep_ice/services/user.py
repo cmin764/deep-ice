@@ -1,4 +1,3 @@
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from deep_ice.core.security import verify_password
@@ -6,8 +5,9 @@ from deep_ice.models import User
 
 
 async def _get_user_by_email(*, session: AsyncSession, email: str) -> User | None:
-    statement = select(User).where(User.email == email)
-    session_user = (await session.exec(statement)).one_or_none()
+    session_user = (
+        await User.fetch(session, filters=[User.email == email])
+    ).one_or_none()
     return session_user
 
 

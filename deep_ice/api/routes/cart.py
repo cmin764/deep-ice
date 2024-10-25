@@ -2,8 +2,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Response, status
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload
-from sqlmodel import select
 
 from deep_ice.core.dependencies import CurrentUserDep, SessionDep, CartServiceDep
 from deep_ice.models import (
@@ -21,8 +19,9 @@ router = APIRouter()
 async def obtain_icecream(session, cart_item: CartItem) -> IceCream:
     # Retrieves the icecream from the item in the cart and checks if the added stock
     #  is viable. Then returns the corresponding icecream object.
-    query_icecream = select(IceCream).where(IceCream.id == cart_item.icecream_id)
-    icecream = (await session.exec(query_icecream)).one_or_none()
+    icecream = (
+        await IceCream.fetch(session, filters=[IceCream.id == cart_item.icecream_id])
+    ).one_or_none()
     if not icecream:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Icecream does not exist"
@@ -78,14 +77,14 @@ async def update_cart_item(
     quantity: Annotated[int, Body(ge=0, embed=True)],
     response: Response,
 ):
-    query_cart_item = (
-        select(CartItem)
-        .where(CartItem.id == item_id)
-        .join(Cart)
-        .where(Cart.user_id == current_user.id)
-        .options(selectinload(CartItem.icecream))
-    )
-    cart_item: CartItem = (await session.exec(query_cart_item)).one_or_none()
+    cart_item: CartItem | None = (
+        await CartItem.fetch(
+            session,
+            filters=[CartItem.id == item_id, Cart.user_id == current_user.id],
+            joins=[Cart],
+            joinedloads=[CartItem.icecream],
+        )
+    ).one_or_none()
     if not cart_item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Item does not exist"

@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Literal
 
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from deep_ice.core.database import get_async_session
@@ -171,8 +170,9 @@ class PaymentService:
         return payment
 
     async def set_order_payment_status(self, order_id: int, status: PaymentStatus):
-        query_payment = select(Payment).where(Payment.order_id == order_id)
-        payment: Payment = (await self._session.exec(query_payment)).one()
+        payment: Payment = (
+            await Payment.fetch(self._session, filters=[Payment.order_id == order_id])
+        ).one()
         payment.status = status
         self._session.add(payment)
 
