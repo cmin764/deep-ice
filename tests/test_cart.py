@@ -1,5 +1,4 @@
 import pytest
-from sqlmodel import select
 
 from deep_ice.models import IceCream
 
@@ -14,8 +13,9 @@ async def test_get_cart(auth_client, initial_data):
 
 
 async def _add_cart_item(session, auth_client, *, flavor, active=True):
-    query_icecream = select(IceCream).where(IceCream.flavor == flavor)
-    icecream = (await session.exec(query_icecream)).one_or_none()
+    icecream = (
+        await IceCream.fetch(session, filters=[IceCream.flavor == flavor])
+    ).one()
     icecream.is_active = active
     session.add(icecream)
     await session.commit()

@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel import insert, select
+from sqlmodel import insert
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel.pool import StaticPool
 
@@ -129,7 +129,7 @@ async def auth_client(client: AsyncClient, auth_token: str):
 @pytest.fixture
 async def user(session: AsyncSession) -> User:
     user = (
-        await session.exec(select(User).where(User.email == "cmin764@gmail.com"))
+        await User.fetch(session, filters=[User.email == "cmin764@gmail.com"])
     ).one()
     return user
 
@@ -146,8 +146,8 @@ async def cart_items(
     items = []
     for ice_data in initial_data["icecream"]:
         icecream = (
-            await session.exec(
-                select(IceCream).where(IceCream.flavor == ice_data["flavor"])
+            await IceCream.fetch(
+                session, filters=[IceCream.flavor == ice_data["flavor"]]
             )
         ).one()
         cart_item = CartItem(

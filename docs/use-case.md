@@ -13,7 +13,7 @@ http -f POST :8000/v1/auth/access-token username="cmin764@gmail.com" password="c
 
 Save the token in the terminal with `token=<access-token>` for later usage.
 
-2. Check available icecream
+2. Check available ice cream
 ```console
 http :8000/v1/icecream
 ```
@@ -43,9 +43,9 @@ http :8000/v1/icecream
 ]
 ```
 
-> Note that icecream is public common information that doesn't require authentication.
+> Note that ice cream is public common information that doesn't require authentication.
 
-3. Add icecream in cart
+3. Add ice cream to cart
 ```console
 http POST :8000/v1/cart/items icecream_id=1 quantity=10 "Authorization: Bearer $token"
 ```
@@ -90,6 +90,22 @@ http :8000/v1/orders "Authorization: Bearer $token"
     {
         "amount": 33.0,
         "id": 20,
+        "items": [
+            {
+                "icecream": {
+                    "available_stock": 90,
+                    "flavor": "vanilla",
+                    "id": 1,
+                    "name": "Vanilla",
+                    "price": 3.3
+                },
+                "icecream_id": 1,
+                "id": 23,
+                "order_id": 20,
+                "quantity": 10,
+                "total_price": 33.0
+            }
+        ],
         "status": "CONFIRMED",
         "user_id": 1
     }

@@ -34,7 +34,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: deep_ice_alembic
-    command: uv run alembic upgrade head
+    command: alembic upgrade head
     environment:
       <<: *common-env-vars
     depends_on:
@@ -52,7 +52,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: uv run arq deep_ice.TaskQueue
+    container_name: deep_ice_worker
+    command: arq deep_ice.TaskQueue
     environment:
       <<: *common-env-vars
     depends_on:

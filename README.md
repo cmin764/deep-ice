@@ -9,7 +9,7 @@ Check out this [use-case](docs/use-case.md) to see how to quickly order some ice
 Run the service stack locally with Docker Compose:
 
 ```console
-docker-compose up
+docker-compose up  # --build
 ```
 
 Now go to http://localhost/docs to see the API docs. You can test it right in the browser.
@@ -30,17 +30,18 @@ Ensure you have Python 3 and `uv` installed, then in the project dir run the fol
 
 ```console
 uv sync
-uv run fastapi dev deep_ice
+uv run fastapi dev deep_ice  # app
 ```
 
 The server requires PostgreSQL and Redis up and running.  
 Ensure proper configuration by copying _[.env.template](.env.template)_ into _[.env](.env)_ first, then change the file
 to suit your setup.
 
-Don't forget to run migrations first:
+Don't forget to run migrations first and a task queue worker to deal with deferred tasks:
 
 ```console
-uv run alembic upgrade head
+uv run alembic upgrade head  # alembic
+uv run arq deep_ice.TaskQueue --watch deep_ice  # worker
 ```
 
 ### Testing and linting

@@ -1,9 +1,63 @@
 import enum
 from typing import Annotated
+from typing import Any, Type, TypeVar
 
 from pydantic import EmailStr
-from sqlalchemy.ext.asyncio import AsyncAttrs
-from sqlmodel import Column, Enum, Field, Relationship, SQLModel, UniqueConstraint
+from sqlalchemy.engine.result import ChunkedIteratorResult
+from sqlalchemy.ext.asyncio import AsyncAttrs, AsyncSession
+from sqlalchemy.orm import joinedload
+from sqlmodel import (
+    Column,
+    Enum,
+    Field,
+    Relationship,
+    SQLModel,
+    UniqueConstraint,
+    select,
+)
+
+T = TypeVar("T", bound=SQLModel)
+
+
+class FetchMixin:
+    """Mixin class for `SQLModel` models with helper methods for common queries."""
+
+    @classmethod
+    async def fetch(
+        cls: Type[T],
+        session: AsyncSession,
+        filters: list[Any] | None = None,
+        joins: list[Any] | None = None,
+        joinedloads: list[Any] | None = None,
+    ) -> ChunkedIteratorResult:
+        """Rows fetching helper as a result object supporting filtering and joins.
+
+        Args:
+            session: The database session for executing the query.
+            filters: A list of filter conditions.
+            joins: List of models to join in the query.
+            joinedloads: List of models to eagerly load via `joinedload`.
+
+        Returns:
+            The result of the executed query as scalars.
+        """
+        query = select(cls)
+
+        if filters:
+            for condition in filters:
+                query = query.where(condition)
+
+        if joins:
+            for join_model in joins:
+                query = query.join(join_model)
+
+        if joinedloads:
+            eager_load = joinedload(joinedloads[0])
+            for load_relation in joinedloads[1:]:
+                eager_load = eager_load.joinedload(load_relation)
+            query = query.options(eager_load)
+
+        return await session.exec(query)
 
 
 class BaseIceCream(SQLModel):
@@ -12,7 +66,7 @@ class BaseIceCream(SQLModel):
     price: float
 
 
-class IceCream(BaseIceCream, table=True):
+class IceCream(BaseIceCream, FetchMixin, table=True):
     id: Annotated[int | None, Field(primary_key=True)] = None
     stock: int
     blocked_quantity: int = 0  # reserved for payments only
@@ -33,7 +87,7 @@ class RetrieveIceCream(BaseIceCream):
     available_stock: int
 
 
-class User(SQLModel, AsyncAttrs, table=True):
+class User(SQLModel, FetchMixin, AsyncAttrs, table=True):
     __tablename__ = "users"
 
     id: Annotated[int | None, Field(primary_key=True)] = None
@@ -61,7 +115,7 @@ class BaseCartItem(SQLModel):
     quantity: Annotated[int, Field(ge=1)] = 1  # defaults to 1 when not specified
 
 
-class CartItem(BaseCartItem, AsyncAttrs, table=True):
+class CartItem(BaseCartItem, FetchMixin, AsyncAttrs, table=True):
     __tablename__ = "cartitems"
     __table_args__ = (
         UniqueConstraint("cart_id", "icecream_id", name="cart_icecream_id"),
@@ -89,7 +143,7 @@ class BaseCart(SQLModel):
     ]
 
 
-class Cart(BaseCart, AsyncAttrs, table=True):
+class Cart(BaseCart, FetchMixin, AsyncAttrs, table=True):
     id: Annotated[int | None, Field(primary_key=True)] = None
 
     items: list[CartItem] = Relationship(back_populates="cart", cascade_delete=True)
@@ -110,7 +164,7 @@ class BaseOrderItem(SQLModel):
     total_price: float  # to freeze the total amount at the point of sale
 
 
-class OrderItem(BaseOrderItem, table=True):
+class OrderItem(BaseOrderItem, FetchMixin, table=True):
     __tablename__ = "orderitems"
     __table_args__ = (
         UniqueConstraint("order_id", "icecream_id", name="order_icecream_id"),
@@ -138,7 +192,7 @@ class BaseOrder(SQLModel):
     status: Annotated[OrderStatus, Field(sa_column=Column(Enum(OrderStatus)))]
 
 
-class Order(BaseOrder, AsyncAttrs, table=True):
+class Order(BaseOrder, FetchMixin, AsyncAttrs, table=True):
     __tablename__ = "orders"
 
     id: Annotated[int | None, Field(primary_key=True)] = None
@@ -182,7 +236,7 @@ class BasePayment(SQLModel):
     method: Annotated[PaymentMethod, Field(sa_column=Column(Enum(PaymentMethod)))]
 
 
-class Payment(BasePayment, table=True):
+class Payment(BasePayment, FetchMixin, table=True):
     __tablename__ = "payments"
 
     id: Annotated[int | None, Field(primary_key=True)] = None

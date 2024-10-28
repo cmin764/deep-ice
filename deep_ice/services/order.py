@@ -1,6 +1,4 @@
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import selectinload
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from deep_ice.models import Order, OrderItem, OrderStatus, Cart
@@ -15,13 +13,17 @@ class OrderService:
         self._stats_service = stats_service
 
     async def _get_order(self, order_id: int) -> Order:
-        order = (
-            await self._session.exec(
-                select(Order)
-                .where(Order.id == order_id)
-                .options(selectinload(Order.items).selectinload(OrderItem.icecream))
+        order: Order = (
+            (
+                await Order.fetch(
+                    self._session,
+                    filters=[Order.id == order_id],
+                    joinedloads=[Order.items, OrderItem.icecream],
+                )
             )
-        ).one()
+            .unique()
+            .one()
+        )
         return order
 
     async def confirm_order(self, order_id: int):

@@ -211,7 +211,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.9.2" },
     { name = "pydantic-settings", specifier = ">=2.5.2" },
     { name = "pyjwt", specifier = ">=2.9.0" },
-    { name = "redis" },
+    { name = "redis", specifier = ">=5.1.1" },
     { name = "sqlmodel", specifier = ">=0.0.22" },
 ]
 

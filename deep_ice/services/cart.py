@@ -1,5 +1,3 @@
-from sqlalchemy.orm import selectinload
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from deep_ice.models import Cart, CartItem
@@ -12,12 +10,17 @@ class CartService:
         self._session = session
 
     async def get_cart(self, user_id: int) -> Cart:
-        query_cart = (
-            select(Cart)
-            .where(Cart.user_id == user_id)
-            .options(selectinload(Cart.items).selectinload(CartItem.icecream))
+        cart: Cart | None = (
+            (
+                await Cart.fetch(
+                    self._session,
+                    filters=[Cart.user_id == user_id],
+                    joinedloads=[Cart.items, CartItem.icecream],
+                )
+            )
+            .unique()
+            .one_or_none()
         )
-        cart: Cart = (await self._session.exec(query_cart)).one_or_none()
         return cart
 
     async def ensure_cart(self, user_id: int) -> Cart:
