@@ -44,3 +44,6 @@ pytest_cache/
 Dockerfile*
 docker-compose*.yml
 docker-compose*.yaml
+
+# Hidden files/dirs
+.*

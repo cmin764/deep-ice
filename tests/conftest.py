@@ -1,12 +1,6 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel import insert
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel.pool import StaticPool
-
 from deep_ice import app
 from deep_ice.core.database import get_async_session
 from deep_ice.core.security import get_password_hash
@@ -14,6 +8,11 @@ from deep_ice.models import Cart, CartItem, IceCream, Order, SQLModel, User
 from deep_ice.services.cart import CartService
 from deep_ice.services.order import OrderService
 from deep_ice.services.stats import stats_service
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlmodel import insert
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel.pool import StaticPool
 
 
 # Run tests with `asyncio` only.

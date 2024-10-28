@@ -9,7 +9,7 @@ Check out this [use-case](docs/use-case.md) to see how to quickly order some ice
 Run the service stack locally with Docker Compose:
 
 ```console
-docker-compose up  # --build
+docker-compose up # --build
 ```
 
 Now go to http://localhost/docs to see the API docs. You can test it right in the browser.
