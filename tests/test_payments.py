@@ -1,22 +1,23 @@
 from unittest.mock import call
 
 import pytest
-from sqlalchemy.orm import selectinload
-from sqlmodel import select
 
 from deep_ice import app
 from deep_ice.models import Order, OrderItem, OrderStatus, PaymentMethod, PaymentStatus
 
 
 async def _check_order_creation(session, order_id, *, status, amount):
-    # Check if the payment successfully created the order and its status.
     order = (
-        await session.exec(
-            select(Order)
-            .where(Order.id == order_id)
-            .options(selectinload(Order.items).selectinload(OrderItem.icecream))
+        (
+            await Order.fetch(
+                session,
+                filters=[Order.id == order_id],
+                joinedloads=[Order.items, OrderItem.icecream],
+            )
         )
-    ).one()
+        .unique()
+        .one()
+    )
     assert order.status is status
     assert order.amount == amount
 
