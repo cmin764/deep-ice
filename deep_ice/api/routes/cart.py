@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, HTTPException, Response, status
 from sqlalchemy.exc import IntegrityError
 
-from deep_ice.core.dependencies import CurrentUserDep, SessionDep, CartServiceDep
+from deep_ice.core.dependencies import CartServiceDep, CurrentUserDep, SessionDep
 from deep_ice.models import (
     Cart,
     CartItem,

@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from deep_ice.core.dependencies import CurrentUserDep, SessionDep
-from deep_ice.models import Order, RetrieveOrder, OrderItem
+from deep_ice.models import Order, OrderItem, RetrieveOrder
 
 router = APIRouter()
 

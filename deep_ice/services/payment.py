@@ -7,7 +7,7 @@ from typing import Literal
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from deep_ice.core.database import get_async_session
-from deep_ice.models import PaymentStatus, Order, PaymentMethod, Payment
+from deep_ice.models import Order, Payment, PaymentMethod, PaymentStatus
 from deep_ice.services.order import OrderService
 from deep_ice.services.stats import stats_service
 
@@ -38,7 +38,6 @@ class PaymentError(Exception):
 
 
 class PaymentInterface(ABC):
-
     @abstractmethod
     async def make_payment(
         self,

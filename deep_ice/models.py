@@ -1,6 +1,5 @@
 import enum
-from typing import Annotated
-from typing import Any, Type, TypeVar
+from typing import Annotated, Any, Type, TypeVar
 
 from pydantic import EmailStr
 from sqlalchemy.engine.result import ChunkedIteratorResult
