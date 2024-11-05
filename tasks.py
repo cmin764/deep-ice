@@ -1,7 +1,8 @@
 from invoke import task
 
 
-PACKAGES = "deep_ice alembic"
+APP_PACKAGE = "deep_ice"
+PACKAGES = f"{APP_PACKAGE} alembic"
 
 
 # Helper function to run commands with 'uv run' and provide CI-friendly logging.
@@ -83,8 +84,35 @@ def type_check(ctx):
 
 @task(pre=[test, format_check, lint, type_check])
 def check_all(ctx):
-    """Run all non-intrusive tasks.
+    """Run all non-intrusive check tasks.
 
     Testing, format checking, linting and type checking, with fast-fail behavior.
     """
     print("✔ All checks complete!")
+
+
+@task(pre=[sync_deps])
+def run_server(ctx, develop: bool = False, port: int | None = None):
+    """Run the app server in production or development mode."""
+    if develop:
+        cmd = "dev"
+        port = port or 8080
+    else:
+        cmd = "run"
+        port = port or 80
+    uv_run(ctx, f"fastapi {cmd} {APP_PACKAGE} --port {port}", f"Server {cmd}")
+
+
+@task(pre=[sync_deps])
+def run_migrations(ctx):
+    """Run the database migrations with alembic."""
+    uv_run(ctx, "alembic upgrade head", "Database migrations")
+
+
+@task(pre=[sync_deps])
+def run_worker(ctx, develop: bool = False):
+    """Run a worker for processing the task queue in production or development mode."""
+    params = ""
+    if develop:
+        params = "--watch deep_ice"
+    uv_run(ctx, f"arq {APP_PACKAGE}.TaskQueue {params}", "Task queue worker")
