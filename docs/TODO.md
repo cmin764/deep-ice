@@ -26,3 +26,4 @@ Up next production-grade service improvements.
 - Keep logs in **Logstash**.
 - Send stats to **Elasticsearch**. (**Kibana**)
 - Monitor system and app metrics with **Prometheus**. (**Grafana**)
+- Deploy the whole system in GCP, AWS, Azure.
