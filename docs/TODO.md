@@ -13,8 +13,7 @@ Critical features and behaviour that isn't met yet.
 
 Nice to have features improving the DX and aiding codebase robustness.
 
-- [ ] Invoke commands for running jobs easier, like: linting & formatting, sorting deps, testing, running the server,
-  migrations etc.
+- [x] Invoke commands for running jobs easier, like: linting & formatting, sorting deps, testing, running the server, migrations etc.
 - [ ] GitHub action to run linting checks and tests. (CI/CD)
 - [ ] Documentation: class diagram, UX flowchart, microservice architecture, which shows how the system works.
 
