@@ -41,7 +41,7 @@ def upgrade() -> None:
 
     # Insert initial data.
     with Session(bind=op.get_bind()) as session:
-        session.exec(
+        session.exec(  # type: ignore
             insert(User).values(
                 [
                     {

@@ -1,6 +1,9 @@
+from typing import cast
+
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from deep_ice.core import logger
 from deep_ice.models import Cart, Order, OrderItem, OrderStatus
 from deep_ice.services.stats import StatsInterface
 
@@ -32,10 +35,16 @@ class OrderService:
         self._session.add(order)
 
         for item in order.items:
-            item.icecream.stock -= item.quantity
-            item.icecream.blocked_quantity -= item.quantity
+            if (icecream := item.icecream) is None:
+                logger.warning(
+                    f"The order item {item!r} belongs to a removed icecream!"
+                )
+                continue
+
+            icecream.stock -= item.quantity
+            icecream.blocked_quantity -= item.quantity
             await self._stats_service.acknowledge_icecream_demand(
-                item.icecream_id, name=item.icecream.name, quantity=item.quantity
+                cast(int, icecream.id), name=icecream.name, quantity=item.quantity
             )
 
         self._session.add_all(order.items)
@@ -46,7 +55,13 @@ class OrderService:
         self._session.add(order)
 
         for item in order.items:
-            item.icecream.blocked_quantity -= item.quantity
+            if (icecream := item.icecream) is None:
+                logger.warning(
+                    f"The order item {item!r} belongs to a removed icecream!"
+                )
+                continue
+
+            icecream.blocked_quantity -= item.quantity
         self._session.add_all(order.items)
 
     async def make_order_from_cart(self, cart: Cart) -> Order:

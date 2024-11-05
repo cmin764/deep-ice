@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Body, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
@@ -25,7 +25,7 @@ async def make_payment(
     # FIXME(cmin764): Check if we need an async Lock primitive here in order to allow
     #  only one user to submit an order at a time. (based on available stock check)
     cart_service = CartService(session)
-    cart = await cart_service.get_cart(current_user.id)
+    cart = await cart_service.get_cart(cast(int, current_user.id))
     if not cart or not cart.items:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

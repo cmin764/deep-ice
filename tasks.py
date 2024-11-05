@@ -20,7 +20,7 @@ def uv_run(ctx, command, task_name):
 def sync_deps(ctx):
     """Synchronize dependencies using `uv sync`."""
     try:
-        print("Synchronizing dependencies...")
+        print("⌛ Synchronizing dependencies...")
         ctx.run("uv sync")
         print("✔ Dependencies synchronized successfully.")
     except Exception as exc:
@@ -87,4 +87,4 @@ def check_all(ctx):
 
     Testing, format checking, linting and type checking, with fast-fail behavior.
     """
-    print("All checks complete!")
+    print("✔ All checks complete!")
