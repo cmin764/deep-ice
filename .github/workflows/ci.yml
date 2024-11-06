@@ -37,32 +37,33 @@ jobs:
       - name: Install dependencies
         run: inv sync-deps
 
-      # Run tests
+      - name: Ensure local environment variables
+        run: |
+          cp .env.template .env
+          cat .env  # display what we have for real there (post-changes if any)
+
       - name: Run tests
         id: test
         run: inv test
         continue-on-error: true
 
-      # Run format check
       - name: Run format check
         id: format_check
         run: inv format-check
         continue-on-error: true
 
-      # Run linting
       - name: Run linting
         id: lint
         run: inv lint
         continue-on-error: true
 
-      # Run type-checking
       - name: Run type-checking
         id: type_check
         run: inv type-check
         continue-on-error: true
 
-      # Final summary step
-      - name: Check results and fail if any check failed
+      # Final summary step which checks all the others.
+      - name: Check results and fail if any previous check failed
         if: always()
         run: |
           # Create an array of step IDs
