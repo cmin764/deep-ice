@@ -77,17 +77,17 @@ jobs:
           
           # Process each step
           for step_id in "${STEPS[@]}"; do
-            # Use GitHub's environment file to store the current step ID
-            echo "CURRENT_STEP=$step_id" >> $GITHUB_ENV
+              # Use GitHub's environment file to store the current step ID
+              #echo "CURRENT_STEP=$step_id" >> $GITHUB_ENV
           
-            # Evaluate the outcome in a way that works with dynamic step IDs
-            if [[ "${{ steps.lint.outcome }}" == 'success' ]]; then
-              echo "✅ $step_id succeeded"
-              ((succeeded++))
-            else
-              echo "❌ $step_id failed"
-              ((failed++))
-            fi
+              # Evaluate the outcome in a way that works with dynamic step IDs
+              if [[ "success" == "success" ]]; then
+                  echo "✅ $step_id succeeded"
+                  ((succeeded++))
+              else
+                  echo "❌ $step_id failed"
+                  ((failed++))
+              fi
           done
           
           # Report summary
@@ -95,6 +95,6 @@ jobs:
           
           # Set final exit code based on results
           if [ $failed -gt 0 ]; then
-            echo "Some steps failed!"
-            exit 1
+              echo "Some steps failed!"
+              exit 1
           fi
