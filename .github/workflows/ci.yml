@@ -22,7 +22,7 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
-          cache-suffix: "-${{ runner.os }}-uv"
+          cache-suffix: "${{ runner.os }}-uv"
 
       - name: Check if UV cache was restored
         if: steps.setup-uv.outputs.cache-hit == 'true'
