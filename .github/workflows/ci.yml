@@ -49,7 +49,7 @@ jobs:
         run: inv test
         continue-on-error: true
 
-      - name: Run format check
+      - name: Run format checking
         id: format_check
         run: inv format-check
         continue-on-error: true
@@ -81,7 +81,7 @@ jobs:
             echo "CURRENT_STEP=$step_id" >> $GITHUB_ENV
           
             # Evaluate the outcome in a way that works with dynamic step IDs
-            if [[ "${{ steps[env.CURRENT_STEP].outcome }}" == 'success' ]]; then
+            if [[ "${{ steps.lint.outcome }}" == 'success' ]]; then
               echo "✅ $step_id succeeded"
               ((succeeded++))
             else
