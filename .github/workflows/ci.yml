@@ -63,21 +63,33 @@ jobs:
       - name: Check results and fail if any check failed
         if: always()
         run: |
-          failed=false
+          # Create an array of step IDs
+          STEPS=("test" "format_check" "lint" "type_check")
           
-          for step in "test" "format_check" "lint" "type_check"; do
-            outcome="${{ steps.$step.outcome }}"
-            if [ "$outcome" != "success" ]; then
-              echo "❌ $step failed"
-              failed=true
+          # Initialize counters
+          succeeded=0
+          failed=0
+          
+          # Process each step
+          for step_id in "${STEPS[@]}"; do
+            # Use GitHub's environment file to store the current step ID
+            echo "CURRENT_STEP=$step_id" >> $GITHUB_ENV
+          
+            # Evaluate the outcome in a way that works with dynamic step IDs
+            if [[ "${{ steps[env.CURRENT_STEP].outcome }}" == 'success' ]]; then
+              echo "✅ $step_id succeeded"
+              ((succeeded++))
             else
-              echo "✔ $step passed"
+              echo "❌ $step_id failed"
+              ((failed++))
             fi
           done
           
-          if [ "$failed" = true ]; then
-            echo "One or more checks failed."
+          # Report summary
+          echo "Summary: $succeeded succeeded, $failed failed"
+          
+          # Set final exit code based on results
+          if [ $failed -gt 0 ]; then
+            echo "Some steps failed!"
             exit 1
-          else
-            echo "All checks passed successfully."
           fi
