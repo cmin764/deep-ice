@@ -34,10 +34,12 @@ dev-dependencies = [
 ]
 
 [tool.pytest.ini_options]
+# Explicitly set the loop scope for asyncio fixtures to avoid the deprecation warning
+asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
     "ignore::Warning",
     "ignore::DeprecationWarning",
-    "ignore::UserWarning"
+    "ignore::UserWarning",
 ]
 addopts = "--disable-warnings"
 

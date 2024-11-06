@@ -16,23 +16,25 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Install UV
+        id: setup-uv
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: 3.12
+          version: "latest"
+          enable-cache: true
+          cache-suffix: "-${{ runner.os }}-uv"
 
-      - name: Upgrade PIP and install Invoke and UV
+      - name: Check if UV cache was restored
+        if: steps.setup-uv.outputs.cache-hit == 'true'
+        run: echo "UV cache was restored!"
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Upgrade PIP and install Invoke
         run: |
           python -m pip install --upgrade pip
-          pip install 'invoke' 'uv'
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: uv-${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            uv-${{ runner.os }}-uv-
+          pip install invoke
 
       - name: Install dependencies
         run: inv sync-deps
