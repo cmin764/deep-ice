@@ -14,7 +14,7 @@ Critical features and behaviour that isn't met yet.
 Nice to have features improving the DX and aiding codebase robustness.
 
 - [x] Invoke commands for running jobs easier, like: linting & formatting, sorting deps, testing, running the server, migrations etc.
-- [ ] GitHub action to run linting checks and tests. (CI/CD)
+- [x] GitHub action to run linting checks and tests. (CI/CD)
 - [ ] Documentation: class diagram, UX flowchart, microservice architecture, which shows how the system works.
 
 ## Next
@@ -25,5 +25,6 @@ Up next production-grade service improvements.
 - Store errors in **Sentry**.
 - Keep logs in **Logstash**.
 - Send stats to **Elasticsearch**. (**Kibana**)
+- Add front-end for the API with Next.js.
 - Monitor system and app metrics with **Prometheus**. (**Grafana**)
 - Deploy the whole system in GCP, AWS, Azure.
