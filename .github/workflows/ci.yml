@@ -83,7 +83,7 @@ jobs:
               # Evaluate the outcome in a way that works with dynamic step IDs
               if [[ "success" == "success" ]]; then
                   echo "✅ $step_id succeeded"
-                  ((succeeded++))
+                  succeeded=$((succeeded + 1))
               else
                   echo "❌ $step_id failed"
                   ((failed++))
