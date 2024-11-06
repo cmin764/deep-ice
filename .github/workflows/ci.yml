@@ -16,68 +16,82 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Install UV
+        id: setup-uv
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: 3.12
+          version: "latest"
+          enable-cache: true
+          cache-suffix: "${{ runner.os }}-uv"
 
-      - name: Upgrade pip
-        run: python -m pip install --upgrade pip
+      - name: Check if UV cache was restored
+        if: steps.setup-uv.outputs.cache-hit == 'true'
+        run: echo "UV cache was restored!"
 
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: uv-${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            uv-${{ runner.os }}-uv-
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Upgrade PIP and install Invoke
+        run: |
+          python -m pip install --upgrade pip
+          pip install invoke
 
       - name: Install dependencies
         run: inv sync-deps
 
-      # Run tests
+      - name: Ensure local environment variables
+        run: |
+          cp .env.template .env
+          cat .env  # display what we have for real there (post-changes if any)
+
       - name: Run tests
         id: test
         run: inv test
         continue-on-error: true
 
-      # Run format check
-      - name: Run format check
+      - name: Run format checking
         id: format_check
         run: inv format-check
         continue-on-error: true
 
-      # Run linting
       - name: Run linting
         id: lint
         run: inv lint
         continue-on-error: true
 
-      # Run type-checking
       - name: Run type-checking
         id: type_check
         run: inv type-check
         continue-on-error: true
 
-      # Final summary step
-      - name: Check results and fail if any check failed
+      # Final summary step which checks all the others.
+      - name: Check results and fail if any previous check failed
         if: always()
         run: |
-          failed=false
+          # Create an array of step IDs and their outcomes.
+          declare -A steps
+          steps["test"]="${{ steps.test.outcome }}"
+          steps["format_check"]="${{ steps.format_check.outcome }}"
+          steps["lint"]="${{ steps.lint.outcome }}"
+          steps["type_check"]="${{ steps.type_check.outcome }}"
           
-          for step in "test" "format_check" "lint" "type_check"; do
-            outcome="${{ steps[$step].outcome }}"
-            if [ "$outcome" != "success" ]; then
-              echo "❌ $step failed"
-              failed=true
+          # Go through each one of those and check their outcome.
+          succeeded=0
+          failed=0
+          for step_id in ${!steps[@]}; do
+            outcome=${steps[$step_id]}
+            if [[ $outcome == "success" ]]; then
+              echo "✅ $step_id succeeded"
+              succeeded=$((succeeded + 1))
             else
-              echo "✔ $step passed"
+              echo "❌ $step_id failed"
+              failed=$((failed + 1))
             fi
           done
-                  
-          if [ "$failed" = true ]; then
-            echo "One or more checks failed."
+          
+          # Report a final summary and set exit code based on the aggregated results.
+          echo "Summary: $succeeded succeeded, $failed failed"
+          if [ $failed -gt 0 ]; then
+            echo "Some steps failed!"
             exit 1
-          else
-            echo "All checks passed successfully."
           fi
