@@ -1,9 +1,8 @@
 import enum
-from typing import Annotated
-from typing import Any, Type, TypeVar
+from typing import Annotated, Any, Type, TypeVar
 
 from pydantic import EmailStr
-from sqlalchemy.engine.result import ChunkedIteratorResult
+from sqlalchemy.engine.result import ScalarResult
 from sqlalchemy.ext.asyncio import AsyncAttrs, AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlmodel import (
@@ -23,13 +22,13 @@ class FetchMixin:
     """Mixin class for `SQLModel` models with helper methods for common queries."""
 
     @classmethod
-    async def fetch(
+    async def fetch(  # type: ignore
         cls: Type[T],
         session: AsyncSession,
         filters: list[Any] | None = None,
         joins: list[Any] | None = None,
         joinedloads: list[Any] | None = None,
-    ) -> ChunkedIteratorResult:
+    ) -> ScalarResult:
         """Rows fetching helper as a result object supporting filtering and joins.
 
         Args:
@@ -57,7 +56,7 @@ class FetchMixin:
                 eager_load = eager_load.joinedload(load_relation)
             query = query.options(eager_load)
 
-        return await session.exec(query)
+        return await session.exec(query)  # type: ignore
 
 
 class BaseIceCream(SQLModel):

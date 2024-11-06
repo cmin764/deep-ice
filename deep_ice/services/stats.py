@@ -7,7 +7,6 @@ from deep_ice.core.config import redis_settings
 
 
 class StatsInterface(ABC):
-
     @abstractmethod
     async def acknowledge_icecream_demand(
         self, icecream_id: int, *, name: str, quantity: int
@@ -20,7 +19,6 @@ class StatsInterface(ABC):
 
 
 class StatsService(StatsInterface):
-
     POPULARITY_KEY = "POPULAR_ICECREAM"
 
     def __init__(self):

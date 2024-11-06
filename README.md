@@ -26,40 +26,47 @@ docker-compose down --rmi all --volumes --remove-orphans
 
 ## Development
 
-Ensure you have Python 3 and `uv` installed, then in the project dir run the following below to install dependencies and run the API server.
+Ensure you have Python 3, Invoke and UV installed, then in the project dir run the following below to install dependencies and run the API server in development mode.
 
 ```console
-uv sync
-uv run fastapi dev deep_ice  # app
+inv run-server -d
 ```
 
 The server requires PostgreSQL and Redis up and running.  
-Ensure proper configuration by copying _[.env.template](.env.template)_ into _[.env](.env)_ first, then change the file
-to suit your setup.
+Ensure proper configuration by copying _[.env.template](.env.template)_ into _[.env](.env)_ first, then change the file to suit your setup.
 
 Don't forget to run migrations first and a task queue worker to deal with deferred tasks:
 
 ```console
-uv run alembic upgrade head  # alembic
-uv run arq deep_ice.TaskQueue --watch deep_ice  # worker
+inv run-migrations
+inv run-worker -d
 ```
 
-### Testing and linting
+### Testing
 
 ```console
-uv run pytest
+inv test
 ```
+
+### Formatting
 
 ```console
-uv run isort deep_ice
-uv run black deep_ice
-uv run ruff format deep_ice
-
-uv run pep8 deep_ice
-uv run flake8 deep_ice
-uv run ruff check deep_ice
-
-uv run mypy deep_ice
+inv format-check -f
 ```
+
+### Linting
+
+```console
+inv format-check
+inv lint
+```
+
+### Type-checking
+
+```console
+inv type-check
+```
+
+> Alternatively, you can run `inv check-all` to run all checks without affecting the code.
 
 Check this [ToDo](docs/TODO.md) list for further improvements and known caveats.

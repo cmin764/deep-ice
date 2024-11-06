@@ -2,12 +2,12 @@ import asyncio
 import random
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from deep_ice.core.database import get_async_session
-from deep_ice.models import PaymentStatus, Order, PaymentMethod, Payment
+from deep_ice.models import Order, Payment, PaymentMethod, PaymentStatus
 from deep_ice.services.order import OrderService
 from deep_ice.services.stats import stats_service
 
@@ -38,7 +38,6 @@ class PaymentError(Exception):
 
 
 class PaymentInterface(ABC):
-
     @abstractmethod
     async def make_payment(
         self,
@@ -151,7 +150,7 @@ class PaymentService:
             PaymentMethod.CARD: self._payment_processor.make_payment_async,
         }
         payment_status = await make_payment[method](
-            order.id, order.amount, method=method
+            cast(int, order.id), order.amount, method=method
         )
         payment = Payment(
             order_id=order.id,
@@ -163,9 +162,9 @@ class PaymentService:
         self._session.add(payment)
 
         if payment_status is PaymentStatus.SUCCESS:
-            await self._order_service.confirm_order(order.id)
+            await self._order_service.confirm_order(cast(int, order.id))
         elif payment_status is PaymentStatus.FAILED:
-            await self._order_service.cancel_order(order.id)
+            await self._order_service.cancel_order(cast(int, order.id))
 
         return payment
 

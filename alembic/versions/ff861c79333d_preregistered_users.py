@@ -10,10 +10,11 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 import sqlmodel.sql.sqltypes
+from sqlmodel import Session, insert
+
 from alembic import op
 from deep_ice.core.security import get_password_hash
 from deep_ice.models import User
-from sqlmodel import Session, insert
 
 # revision identifiers, used by Alembic.
 revision: str = "ff861c79333d"
@@ -40,7 +41,7 @@ def upgrade() -> None:
 
     # Insert initial data.
     with Session(bind=op.get_bind()) as session:
-        session.exec(
+        session.exec(  # type: ignore
             insert(User).values(
                 [
                     {

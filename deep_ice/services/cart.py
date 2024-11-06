@@ -9,7 +9,7 @@ class CartService:
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def get_cart(self, user_id: int) -> Cart:
+    async def get_cart(self, user_id: int) -> Cart | None:
         cart: Cart | None = (
             (
                 await Cart.fetch(

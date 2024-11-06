@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
 from deep_ice.api import api_router
-from deep_ice.core.config import settings, redis_settings
+from deep_ice.core.config import redis_settings, settings
 from deep_ice.services import payment as payment_service
 
 

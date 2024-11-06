@@ -1,9 +1,9 @@
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Body, HTTPException, Response, status
 from sqlalchemy.exc import IntegrityError
 
-from deep_ice.core.dependencies import CurrentUserDep, SessionDep, CartServiceDep
+from deep_ice.core.dependencies import CartServiceDep, CurrentUserDep, SessionDep
 from deep_ice.models import (
     Cart,
     CartItem,
@@ -39,7 +39,7 @@ async def obtain_icecream(session, cart_item: CartItem) -> IceCream:
 
 @router.get("", response_model=RetrieveCart)
 async def get_cart_items(current_user: CurrentUserDep, cart_service: CartServiceDep):
-    cart = await cart_service.ensure_cart(current_user.id)
+    cart = await cart_service.ensure_cart(cast(int, current_user.id))
     return cart
 
 
@@ -51,7 +51,7 @@ async def add_item_to_cart(
     item: Annotated[CreateCartItem, Body()],
     response: Response,
 ):
-    cart = await cart_service.ensure_cart(current_user.id)
+    cart = await cart_service.ensure_cart(cast(int, current_user.id))
     cart_item = CartItem(cart_id=cart.id, **item.model_dump())
     icecream = await obtain_icecream(session, cart_item=cart_item)
 
