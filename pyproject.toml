@@ -33,6 +33,14 @@ dev-dependencies = [
     "types-passlib>=1.7.7.20240819",
 ]
 
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::Warning",
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning"
+]
+addopts = "--disable-warnings"
+
 [tool.flake8]
 # Check that this is aligned with your other tools like Black
 max-line-length = 88
