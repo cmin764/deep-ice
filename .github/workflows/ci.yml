@@ -66,7 +66,7 @@ jobs:
           failed=false
           
           for step in "test" "format_check" "lint" "type_check"; do
-            outcome="${{ steps[$step].outcome }}"
+            outcome="${{ steps.$step.outcome }}"
             if [ "$outcome" != "success" ]; then
               echo "❌ $step failed"
               failed=true
@@ -74,7 +74,7 @@ jobs:
               echo "✔ $step passed"
             fi
           done
-                  
+          
           if [ "$failed" = true ]; then
             echo "One or more checks failed."
             exit 1
