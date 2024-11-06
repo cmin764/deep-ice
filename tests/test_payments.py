@@ -38,7 +38,7 @@ def _check_quantities(order, initial_data):
 
 def _check_stats(redis_client):
     expected_calls = [
-        call("POPULAR_ICECREAM", 10, "Vanilla:123"),
+        call("POPULAR_ICECREAM", 10, "Vanilla:1"),
         call("POPULAR_ICECREAM", 20, "Chocolate:2"),
         call("POPULAR_ICECREAM", 5, "Strawberry:3"),
     ]
