@@ -1,0 +1,83 @@
+name: CI checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: inv sync-deps
+
+      # Run tests
+      - name: Run tests
+        id: test
+        run: inv test
+        continue-on-error: true
+
+      # Run format check
+      - name: Run format check
+        id: format_check
+        run: inv format-check
+        continue-on-error: true
+
+      # Run linting
+      - name: Run linting
+        id: lint
+        run: inv lint
+        continue-on-error: true
+
+      # Run type-checking
+      - name: Run type-checking
+        id: type_check
+        run: inv type-check
+        continue-on-error: true
+
+      # Final summary step
+      - name: Check results and fail if any check failed
+        if: always()
+        run: |
+          failed=false
+          
+          for step in "test" "format_check" "lint" "type_check"; do
+            outcome="${{ steps[$step].outcome }}"
+            if [ "$outcome" != "success" ]; then
+              echo "❌ $step failed"
+              failed=true
+            else
+              echo "✔ $step passed"
+            fi
+          done
+                  
+          if [ "$failed" = true ]; then
+            echo "One or more checks failed."
+            exit 1
+          else
+            echo "All checks passed successfully."
+          fi
