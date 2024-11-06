@@ -70,7 +70,10 @@ jobs:
         run: |
           # Create an array of step IDs and their outcomes.
           declare -A steps
+          steps["test"]="${{ steps.test.outcome }}"
+          steps["format_check"]="${{ steps.format_check.outcome }}"
           steps["lint"]="${{ steps.lint.outcome }}"
+          steps["type_check"]="${{ steps.type_check.outcome }}"
           
           # Go through each one of those and check their outcome.
           succeeded=0
