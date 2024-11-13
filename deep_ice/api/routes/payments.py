@@ -53,7 +53,7 @@ async def make_payment(
         #  delete the cart and all its contents.
         await session.delete(cart)
     except (SQLAlchemyError, PaymentError) as exc:
-        logger.exception(f"Payment error: {exc}")
+        logger.exception("Payment error: %s", exc)
         sentry_sdk.capture_exception(exc)
         await session.rollback()
         if order:

@@ -30,21 +30,21 @@ class TaskQueue:
     retry_delay = settings.TASK_RETRY_DELAY
 
 
-if settings.SENTRY_DSN:
-    sentry_sdk.init(
-        dsn=settings.SENTRY_DSN,
-        # Set traces_sample_rate to 1.0 to capture 100%
-        #  of transactions for tracing. (or lower in production)
-        traces_sample_rate=settings.SENTRY_SAMPLE_RATE,
-        _experiments={
-            # Set this to True to automatically start the profiler when possible.
-            "continuous_profiling_auto_start": True,
-        },
-        integrations=[
-            # ARQ and FastAPI integrations are automatically added.
-            AsyncioIntegration(),
-        ],
-    )
+sentry_sdk.init(
+    # Empty DSN values would work as well. (reporting disabled)
+    dsn=settings.SENTRY_DSN,
+    # Set traces_sample_rate to 1.0 to capture 100%
+    #  of transactions for tracing. (or lower in production)
+    traces_sample_rate=settings.SENTRY_SAMPLE_RATE,
+    _experiments={
+        # Set this to True to automatically start the profiler when possible.
+        "continuous_profiling_auto_start": True,
+    },
+    integrations=[
+        # ARQ and FastAPI integrations are automatically added.
+        AsyncioIntegration(),
+    ],
+)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
