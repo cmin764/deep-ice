@@ -4,9 +4,11 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Literal, cast
 
+import sentry_sdk
 from arq import Retry
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from deep_ice.core import logger
 from deep_ice.core.config import settings
 from deep_ice.core.database import get_async_session
 from deep_ice.models import Order, Payment, PaymentMethod, PaymentStatus
@@ -17,10 +19,21 @@ from deep_ice.services.stats import stats_service
 async def make_payment_task(
     ctx, order_id: int, amount: float, *, method: PaymentMethod, _stub_dict: dict
 ) -> str:
+    from deep_ice import TaskQueue
+
     stub = PaymentStub(**_stub_dict)
     status = await stub.make_payment(order_id, amount, method=method)
     if status is PaymentStatus.FAILED:
-        raise Retry(defer=ctx["job_try"] * settings.TASK_BACKOFF_FACTOR)
+        attempts = ctx["job_try"]
+        if attempts >= TaskQueue.max_tries:
+            msg = f"Gave up on {method.value} payment for order #{order_id}!"
+            logger.error(msg)
+            sentry_sdk.capture_message(msg, level="error")
+        else:
+            msg = f"{method.value} payment for order #{order_id} failed, retrying..."
+            logger.warning(msg)
+            sentry_sdk.capture_message(msg, level="warning")
+        raise Retry(defer=attempts * settings.TASK_BACKOFF_FACTOR)
 
     async for session in get_async_session():
         order_service = OrderService(session, stats_service=stats_service)
@@ -91,9 +104,11 @@ class PaymentStub(PaymentInterface):
         Returns:
             A value indicating the payment status (either `SUCCESS` or `FAILED`).
         """
-        print(
-            f"Initiating {method.value} payment for order {order_id}"
-            f" of amount ${amount}..."
+        logger.info(
+            "Initiating %s payment for order %d of amount $%f...",
+            method.value,
+            order_id,
+            amount,
         )
 
         if method is PaymentMethod.CASH:
@@ -103,7 +118,7 @@ class PaymentStub(PaymentInterface):
 
         # Simulate payment processing times and potential for failure for card ones.
         wait_time = random.randint(self.min_delay, self.max_delay)
-        print(f"Processing payment, this may take up to {wait_time} seconds...")
+        logger.info("Processing payment, this may take up to %d seconds...", wait_time)
         await asyncio.sleep(wait_time)
 
         if self.allow_failures:
@@ -114,7 +129,7 @@ class PaymentStub(PaymentInterface):
         else:
             payment_result = PaymentStatus.SUCCESS
 
-        print(f"Payment result: {payment_result}")
+        logger.info("Payment result: %s", payment_result.value)
         return payment_result
 
     async def make_payment_async(
@@ -122,13 +137,14 @@ class PaymentStub(PaymentInterface):
     ) -> Literal[PaymentStatus.PENDING]:
         from deep_ice import app
 
-        await app.state.redis_pool.enqueue_job(
-            make_payment_task.__name__,
-            order_id,
-            amount,
-            method=method,
-            _stub_dict=self.__dict__,
-        )
+        with sentry_sdk.start_transaction(name="payment-tasks"):
+            await app.state.redis_pool.enqueue_job(
+                make_payment_task.__name__,
+                order_id,
+                amount,
+                method=method,
+                _stub_dict=self.__dict__,
+            )
         return PaymentStatus.PENDING
 
 

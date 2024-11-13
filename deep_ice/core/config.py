@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     TASK_RETRY_DELAY: int = 1  # seconds between retries
     TASK_BACKOFF_FACTOR: int = 5  # seconds to wait based on the job try counter
 
+    SENTRY_DSN: str = ""  # without a value we won't initialize Sentry error capturing
+    SENTRY_SAMPLE_RATE: float = 0.2  # percentage of traces to capture
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:

@@ -1,9 +1,11 @@
 from typing import Annotated, cast
 
+import sentry_sdk
 from fastapi import APIRouter, Body, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
 
+from deep_ice.core import logger
 from deep_ice.core.dependencies import CurrentUserDep, SessionDep
 from deep_ice.models import PaymentMethod, PaymentStatus, RetrievePayment
 from deep_ice.services.cart import CartService
@@ -51,8 +53,8 @@ async def make_payment(
         #  delete the cart and all its contents.
         await session.delete(cart)
     except (SQLAlchemyError, PaymentError) as exc:
-        # FIXME(cmin764): Add proper logging and capture exception in Sentry.
-        print("Payment error: ", exc)
+        logger.exception(f"Payment error: {exc}")
+        sentry_sdk.capture_exception(exc)
         await session.rollback()
         if order:
             await session.delete(order)

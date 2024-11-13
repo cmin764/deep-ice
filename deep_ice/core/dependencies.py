@@ -1,13 +1,14 @@
 from typing import Annotated
 
 import jwt
+import sentry_sdk
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from deep_ice.core import security
+from deep_ice.core import security, logger
 from deep_ice.core.config import settings
 from deep_ice.core.database import get_async_session
 from deep_ice.models import TokenPayload, User
@@ -27,7 +28,9 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> User:
             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
         token_data = TokenPayload.model_validate(payload)
-    except (InvalidTokenError, ValidationError):
+    except (InvalidTokenError, ValidationError) as exc:
+        logger.exception("Invalid token: %s", exc)
+        sentry_sdk.capture_exception(exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Couldn't validate credentials",
