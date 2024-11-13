@@ -30,6 +30,10 @@ class Settings(BaseSettings):
 
     REDIS_HOST: str = "localhost"
 
+    TASK_MAX_RETRIES: int = 3
+    TASK_RETRY_DELAY: int = 1  # seconds between retries
+    TASK_BACKOFF_FACTOR: int = 5  # seconds to wait based on the job try counter
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:

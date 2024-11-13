@@ -4,8 +4,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Literal, cast
 
+from arq import Retry
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from deep_ice.core.config import settings
 from deep_ice.core.database import get_async_session
 from deep_ice.models import Order, Payment, PaymentMethod, PaymentStatus
 from deep_ice.services.order import OrderService
@@ -17,6 +19,8 @@ async def make_payment_task(
 ) -> str:
     stub = PaymentStub(**_stub_dict)
     status = await stub.make_payment(order_id, amount, method=method)
+    if status is PaymentStatus.FAILED:
+        raise Retry(defer=ctx["job_try"] * settings.TASK_BACKOFF_FACTOR)
 
     async for session in get_async_session():
         order_service = OrderService(session, stats_service=stats_service)
@@ -176,4 +180,4 @@ class PaymentService:
         self._session.add(payment)
 
 
-payment_stub = PaymentStub(1, 3)
+payment_stub = PaymentStub(1, 3, allow_failures=True)
