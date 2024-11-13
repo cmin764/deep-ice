@@ -8,7 +8,7 @@ from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from deep_ice.core import security, logger
+from deep_ice.core import logger, security
 from deep_ice.core.config import settings
 from deep_ice.core.database import get_async_session
 from deep_ice.models import TokenPayload, User
