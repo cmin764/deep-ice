@@ -26,7 +26,7 @@ async def lifespan(fast_app: FastAPI):
 class TaskQueue:
     functions = [payment_service.make_payment_task]
     redis_settings = redis_settings
-    max_tries = settings.TASK_MAX_RETRIES
+    max_tries = settings.TASK_MAX_TRIES
     retry_delay = settings.TASK_RETRY_DELAY
 
 

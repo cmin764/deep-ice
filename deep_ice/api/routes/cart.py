@@ -43,13 +43,14 @@ async def get_cart_items(current_user: CurrentUserDep, cart_service: CartService
     return cart
 
 
-@router.post("/items", response_model=RetrieveCartItem)
+@router.post(
+    "/items", response_model=RetrieveCartItem, status_code=status.HTTP_201_CREATED
+)
 async def add_item_to_cart(
     session: SessionDep,
     current_user: CurrentUserDep,
     cart_service: CartServiceDep,
     item: Annotated[CreateCartItem, Body()],
-    response: Response,
 ):
     cart = await cart_service.ensure_cart(cast(int, current_user.id))
     cart_item = CartItem(cart_id=cart.id, **item.model_dump())
@@ -65,7 +66,6 @@ async def add_item_to_cart(
     else:
         cart_item.icecream = icecream
 
-    response.status_code = status.HTTP_201_CREATED
     return cart_item
 
 

@@ -6,9 +6,8 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from deep_ice.core import logger
-from deep_ice.core.dependencies import CurrentUserDep, SessionDep
+from deep_ice.core.dependencies import CartServiceDep, CurrentUserDep, SessionDep
 from deep_ice.models import PaymentMethod, PaymentStatus, RetrievePayment
-from deep_ice.services.cart import CartService
 from deep_ice.services.order import OrderService
 from deep_ice.services.payment import PaymentError, PaymentService, payment_stub
 from deep_ice.services.stats import stats_service
@@ -20,13 +19,13 @@ router = APIRouter()
 async def make_payment(
     session: SessionDep,
     current_user: CurrentUserDep,
+    cart_service: CartServiceDep,
     method: Annotated[PaymentMethod, Body(embed=True)],
     request: Request,
     response: Response,
 ):
     # FIXME(cmin764): Check if we need an async Lock primitive here in order to allow
     #  only one user to submit an order at a time. (based on available stock check)
-    cart_service = CartService(session)
     cart = await cart_service.get_cart(cast(int, current_user.id))
     if not cart or not cart.items:
         raise HTTPException(
