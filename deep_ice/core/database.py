@@ -6,7 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from deep_ice.core.config import settings
 
 async_engine = create_async_engine(
-    str(settings.SQLALCHEMY_DATABASE_URI), echo=True, future=True
+    str(settings.SQLALCHEMY_DATABASE_URI), echo=settings.DEBUG, future=True
 )
 
 

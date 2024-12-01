@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     )
 
     LOG_LEVEL: str = "INFO"
+    DEBUG: bool = False
     PROJECT_NAME: str = "Deep Ice"
     API_V1_STR: str = "/v1"
 
