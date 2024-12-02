@@ -34,6 +34,9 @@ dev-dependencies = [
     "types-passlib>=1.7.7.20240819",
 ]
 
+[tool.setuptools]
+packages = ["deep_ice"]
+
 [tool.pytest.ini_options]
 # Explicitly set the loop scope for asyncio fixtures to avoid the deprecation warning
 asyncio_default_fixture_loop_scope = "function"
