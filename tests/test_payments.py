@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import call
 
 import pytest
@@ -24,13 +25,15 @@ async def _check_order_creation(session, order_id, *, status, amount):
     return order
 
 
+def _get_icecream(initial_data, flavor):
+    for icecream in initial_data["icecream"]:
+        if icecream["flavor"] == flavor:
+            return icecream
+
+
 def _check_quantities(order, initial_data):
-    # For confirmed orders, ensure the stock was deducted correctly.
-    get_icecream = lambda flavor: [
-        ice for ice in initial_data["icecream"] if ice["flavor"] == flavor
-    ][0]
     for item in order.items:
-        before = get_icecream(item.icecream.flavor)["stock"]
+        before = _get_icecream(initial_data, item.icecream.flavor)["stock"]
         after = item.icecream.stock
         assert after == before - item.quantity
         assert not item.icecream.blocked_quantity
@@ -85,3 +88,63 @@ async def test_make_successful_payment(
     data = response.json()
     assert len(data) == 1
     assert data[0]["method"] == method.value
+
+
+@pytest.mark.anyio
+async def test_payment_empty_cart(redis_client, session, auth_client):
+    response = await auth_client.post(
+        "/v1/payments", json={"method": PaymentMethod.CASH.value}
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_payment_redirect_insufficient_stock(
+    redis_client, session, auth_client, cart_items
+):
+    # Simulate purchase of some icecream which became unavailable in the meantime.
+    first_item = cart_items[0]
+    icecream = await first_item.awaitable_attrs.icecream
+    initial_quantity = first_item.quantity
+    max_quantity = initial_quantity - 1
+    icecream.stock = max_quantity
+    session.add(icecream)
+    await session.commit()
+
+    # Simulate payment and check if the redirect happened including the cart item
+    #  quantity update to the new maximum available quantity for that ice cream flavor.
+    response = await auth_client.post(
+        "/v1/payments", json={"method": PaymentMethod.CASH.value}
+    )
+    assert response.status_code == 307
+    redirect_url = response.headers.get("Location")
+    assert redirect_url.endswith("/v1/cart")
+    assert first_item.quantity != initial_quantity
+    assert first_item.quantity == max_quantity
+
+
+@pytest.mark.anyio
+async def test_concurrent_card_payments(
+    redis_client,
+    session,
+    auth_client,
+    cart_items,
+    secondary_auth_client,
+    secondary_cart_items,
+):
+    # Two greedy customers add the whole stock at the same time to each of their carts.
+    for items in (cart_items, secondary_cart_items):
+        for item in items:
+            item.quantity = item.icecream.available_stock
+        session.add_all(items)
+    await session.commit()
+
+    # Two different customers triggering a card payment each, simultaneously and
+    #  without enough stock for both.
+    args, kwargs = ["/v1/payments"], {"json": {"method": PaymentMethod.CARD.value}}
+    requests = [
+        crt_client.post(*args, **kwargs)
+        for crt_client in (auth_client, secondary_auth_client)
+    ]
+    responses = await asyncio.gather(*requests)
+    print([resp.status_code for resp in responses])

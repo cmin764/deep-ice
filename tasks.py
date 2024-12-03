@@ -2,7 +2,7 @@ from invoke import task
 
 
 APP_PACKAGE = "deep_ice"
-PACKAGES = f"{APP_PACKAGE} alembic"
+PACKAGES = f"{APP_PACKAGE} alembic tests"
 
 
 # Helper function to run commands with 'uv run' and provide CI-friendly logging.
@@ -114,5 +114,5 @@ def run_worker(ctx, develop: bool = False):
     """Run a worker for processing the task queue in production or development mode."""
     params = ""
     if develop:
-        params = "--watch deep_ice"
+        params = f"--watch {APP_PACKAGE}"
     uv_run(ctx, f"arq {APP_PACKAGE}.TaskQueue {params}", "Task queue worker")
