@@ -3,7 +3,13 @@ from unittest.mock import call
 import pytest
 
 from deep_ice import app
-from deep_ice.models import Order, OrderItem, OrderStatus, PaymentMethod, PaymentStatus
+from deep_ice.models import (
+    Order,
+    OrderItem,
+    OrderStatus,
+    PaymentMethod,
+    PaymentStatus,
+)
 
 
 async def _check_order_creation(session, order_id, *, status, amount):
@@ -85,3 +91,40 @@ async def test_make_successful_payment(
     data = response.json()
     assert len(data) == 1
     assert data[0]["method"] == method.value
+
+
+@pytest.mark.anyio
+async def test_payment_redirect_insufficient_stock(
+    redis_client, session, auth_client, cart_items
+):
+    # Simulate purchase of some icecream in the meantime, leaving the current cart on
+    #  insufficient stock.
+    first_item = cart_items[0]
+    icecream = await first_item.awaitable_attrs.icecream
+    initial_quantity = first_item.quantity
+    max_quantity = initial_quantity - 1
+    icecream.stock = max_quantity
+    session.add(icecream)
+    await session.commit()
+
+    # Simulate payment and check if the redirect happened including the cart item
+    #  quantity update to the new maximum available quantity for that ice cream flavor.
+    response = await auth_client.post(
+        "/v1/payments", json={"method": PaymentMethod.CASH.value}
+    )
+    assert response.status_code == 307
+    redirect_url = response.headers.get("Location")
+    assert redirect_url.endswith("/v1/cart")
+    await session.refresh(first_item)
+    assert first_item.quantity != initial_quantity
+    assert first_item.quantity == max_quantity
+
+
+@pytest.mark.anyio
+async def test_concurrent_card_payments(
+    redis_client, session, auth_client, secondary_auth_client, cart_items
+):
+    # Two different customers triggering a card payment simultaneously.
+    args, kwargs = ["/v1/payments"], {"json": {"method": PaymentMethod.CARD.value}}
+    main_response = await auth_client.post(*args, **kwargs)
+    secondary_response = await secondary_auth_client.post(*args, **kwargs)

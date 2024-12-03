@@ -1,6 +1,12 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlmodel import insert
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel.pool import StaticPool
+
 from deep_ice import app
 from deep_ice.core.database import get_async_session
 from deep_ice.core.security import get_password_hash
@@ -8,11 +14,6 @@ from deep_ice.models import Cart, CartItem, IceCream, Order, SQLModel, User
 from deep_ice.services.cart import CartService
 from deep_ice.services.order import OrderService
 from deep_ice.services.stats import stats_service
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel import insert
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel.pool import StaticPool
 
 
 # Run tests with `asyncio` only.
@@ -71,22 +72,29 @@ async def initial_data(session: AsyncSession) -> dict:
         {
             "name": "Cosmin Poieana",
             "email": "cmin764@gmail.com",
+            "password": "cosmin-password",
             "hashed_password": get_password_hash("cosmin-password"),
         },
         {
             "name": "John Doe",
             "email": "john.doe@deepicecream.ai",
+            "password": "john-password",
             "hashed_password": get_password_hash("john-password"),
         },
         {
             "name": "Sam Smith",
             "email": "sam.smith@deepicecream.ai",
+            "password": "sam-password",
             "hashed_password": get_password_hash("sam-password"),
         },
     ]
 
     await session.exec(insert(IceCream).values(icecream_dump))
-    await session.exec(insert(User).values(users_dump))
+    clean_users_dump = [
+        {key: value for key, value in user_data.items() if key != "password"}
+        for user_data in users_dump
+    ]
+    await session.exec(insert(User).values(clean_users_dump))
     await session.commit()
 
     return {"icecream": icecream_dump, "users": users_dump}
@@ -106,10 +114,28 @@ async def client_fixture(session: AsyncSession, mocker):
     app.dependency_overrides.clear()
 
 
+async def _get_users(session: AsyncSession, email: str | None = None) -> list[User]:
+    filters = []
+    if email:
+        filters.append(User.email == email)
+    result = await User.fetch(session, filters=filters)
+    users = [result.one()] if email else result.all()
+    return users
+
+
 @pytest.fixture
-async def auth_token(initial_data: dict, client: AsyncClient) -> str:
+async def users(session: AsyncSession, initial_data: dict) -> list[User]:
+    return await _get_users(session)
+
+
+@pytest.fixture
+async def user(users: list[User]) -> User:
+    return [usr for usr in users if usr.email == "cmin764@gmail.com"][0]
+
+
+async def _get_auth_token(client: AsyncClient, *, email: str, password: str) -> str:
     # Authenticate and get the token.
-    form_data = {"username": "cmin764@gmail.com", "password": "cosmin-password"}
+    form_data = {"username": email, "password": password}
     response = await client.post("/v1/auth/access-token", data=form_data)
     assert response.status_code == 200
 
@@ -120,17 +146,42 @@ async def auth_token(initial_data: dict, client: AsyncClient) -> str:
 
 
 @pytest.fixture
+async def auth_tokens(
+    initial_data: dict, users: list[User], client: AsyncClient
+) -> list[dict[str, str]]:
+    users_dump = initial_data["users"]
+    tokens = []
+    for user in users:
+        user_dump = [item for item in users_dump if item["email"] == user.email][0]
+        token = await _get_auth_token(
+            client, email=user.email, password=user_dump["password"]
+        )
+        tokens.append({"email": user.email, "token": token})
+    return tokens
+
+
+@pytest.fixture
+async def auth_token(initial_data: dict, user: User, client: AsyncClient) -> str:
+    users_dump = initial_data["users"]
+    user_dump = [item for item in users_dump if item["email"] == user.email][0]
+    return await _get_auth_token(
+        client, email=user.email, password=user_dump["password"]
+    )
+
+
+@pytest.fixture
 async def auth_client(client: AsyncClient, auth_token: str):
     client.headers.update({"Authorization": f"Bearer {auth_token}"})
     return client
 
 
 @pytest.fixture
-async def user(session: AsyncSession) -> User:
-    user = (
-        await User.fetch(session, filters=[User.email == "cmin764@gmail.com"])
-    ).one()
-    return user
+async def secondary_auth_client(
+    user: User, client: AsyncClient, auth_tokens: list[dict[str, str]]
+):
+    token = [tkn for tkn in auth_tokens if tkn["email"] != user.email][0]
+    client.headers.update({"Authorization": f"Bearer {token}"})
+    return client
 
 
 @pytest.fixture

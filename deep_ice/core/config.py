@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         # Use the top level .env file (one level above ./deep_ice/).
         env_file=".env",
-        env_ignore_empty=True,
+        env_ignore_empty=False,
         extra="ignore",
     )
 

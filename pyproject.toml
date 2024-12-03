@@ -32,6 +32,7 @@ dev-dependencies = [
     "pytest>=8.3.3",
     "ruff>=0.6.9",
     "types-passlib>=1.7.7.20240819",
+    "pytest-env>=1.1.5",
 ]
 
 [tool.setuptools]
@@ -46,6 +47,11 @@ filterwarnings = [
     "ignore::UserWarning",
 ]
 addopts = "--disable-warnings"
+env = [
+    "SENTRY_DSN = ", # disable Sentry reporting during testing
+    "LOG_LEVEL = INFO",
+    "DEBUG = true"
+]
 
 [tool.flake8]
 # Check that this is aligned with your other tools like Black
