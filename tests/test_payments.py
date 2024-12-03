@@ -91,6 +91,14 @@ async def test_make_successful_payment(
 
 
 @pytest.mark.anyio
+async def test_payment_empty_cart(redis_client, session, auth_client):
+    response = await auth_client.post(
+        "/v1/payments", json={"method": PaymentMethod.CASH.value}
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.anyio
 async def test_payment_redirect_insufficient_stock(
     redis_client, session, auth_client, cart_items
 ):
