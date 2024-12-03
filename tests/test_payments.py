@@ -94,8 +94,7 @@ async def test_make_successful_payment(
 async def test_payment_redirect_insufficient_stock(
     redis_client, session, auth_client, cart_items
 ):
-    # Simulate purchase of some icecream in the meantime, leaving the current cart on
-    #  insufficient stock.
+    # Simulate purchase of some icecream which became unavailable in the meantime.
     first_item = cart_items[0]
     icecream = await first_item.awaitable_attrs.icecream
     initial_quantity = first_item.quantity
@@ -125,6 +124,7 @@ async def test_concurrent_card_payments(
     secondary_auth_client,
     secondary_cart_items,
 ):
+    # Two greedy customers add the whole stock at the same time to each of their carts.
     for items in (cart_items, secondary_cart_items):
         for item in items:
             item.quantity = item.icecream.available_stock
