@@ -1,15 +1,10 @@
+import asyncio
 from unittest.mock import call
 
 import pytest
 
 from deep_ice import app
-from deep_ice.models import (
-    Order,
-    OrderItem,
-    OrderStatus,
-    PaymentMethod,
-    PaymentStatus,
-)
+from deep_ice.models import Order, OrderItem, OrderStatus, PaymentMethod, PaymentStatus
 
 
 async def _check_order_creation(session, order_id, *, status, amount):
@@ -30,13 +25,15 @@ async def _check_order_creation(session, order_id, *, status, amount):
     return order
 
 
+def _get_icecream(initial_data, flavor):
+    for icecream in initial_data["icecream"]:
+        if icecream["flavor"] == flavor:
+            return icecream
+
+
 def _check_quantities(order, initial_data):
-    # For confirmed orders, ensure the stock was deducted correctly.
-    get_icecream = lambda flavor: [
-        ice for ice in initial_data["icecream"] if ice["flavor"] == flavor
-    ][0]
     for item in order.items:
-        before = get_icecream(item.icecream.flavor)["stock"]
+        before = _get_icecream(initial_data, item.icecream.flavor)["stock"]
         after = item.icecream.stock
         assert after == before - item.quantity
         assert not item.icecream.blocked_quantity
@@ -115,16 +112,31 @@ async def test_payment_redirect_insufficient_stock(
     assert response.status_code == 307
     redirect_url = response.headers.get("Location")
     assert redirect_url.endswith("/v1/cart")
-    await session.refresh(first_item)
     assert first_item.quantity != initial_quantity
     assert first_item.quantity == max_quantity
 
 
 @pytest.mark.anyio
 async def test_concurrent_card_payments(
-    redis_client, session, auth_client, secondary_auth_client, cart_items
+    redis_client,
+    session,
+    auth_client,
+    cart_items,
+    secondary_auth_client,
+    secondary_cart_items,
 ):
-    # Two different customers triggering a card payment simultaneously.
+    for items in (cart_items, secondary_cart_items):
+        for item in items:
+            item.quantity = item.icecream.available_stock
+        session.add_all(items)
+    await session.commit()
+
+    # Two different customers triggering a card payment each, simultaneously and
+    #  without enough stock for both.
     args, kwargs = ["/v1/payments"], {"json": {"method": PaymentMethod.CARD.value}}
-    main_response = await auth_client.post(*args, **kwargs)
-    secondary_response = await secondary_auth_client.post(*args, **kwargs)
+    requests = [
+        crt_client.post(*args, **kwargs)
+        for crt_client in (auth_client, secondary_auth_client)
+    ]
+    responses = await asyncio.gather(*requests)
+    print([resp.status_code for resp in responses])

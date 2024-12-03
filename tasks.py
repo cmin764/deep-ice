@@ -2,7 +2,7 @@ from invoke import task
 
 
 APP_PACKAGE = "deep_ice"
-PACKAGES = f"{APP_PACKAGE} alembic"
+PACKAGES = f"{APP_PACKAGE} alembic tests"
 
 
 # Helper function to run commands with 'uv run' and provide CI-friendly logging.
