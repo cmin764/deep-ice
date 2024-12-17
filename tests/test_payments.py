@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 from unittest.mock import call
 
 import pytest
@@ -123,6 +124,20 @@ async def test_payment_redirect_insufficient_stock(
     assert first_item.quantity == max_quantity
 
 
+async def _clients_requests(path, *, _clients, _method, _payloads=None, **payload):
+    paths = path if isinstance(path, list | tuple) else [path]
+    payloads = (_payloads or []) + [payload]
+    requests = [
+        getattr(client, _method)(path, json=payload)
+        for client in _clients
+        for path, payload in zip(paths, payloads)
+    ]
+    responses = await asyncio.gather(*requests)
+    return responses
+
+
+@pytest.mark.parametrize("quantity_factor", [1, 0.5])
+@pytest.mark.parametrize("method", list(PaymentMethod))
 @pytest.mark.anyio
 async def test_concurrent_card_payments(
     redis_client,
@@ -131,20 +146,56 @@ async def test_concurrent_card_payments(
     cart_items,
     secondary_auth_client,
     secondary_cart_items,
+    method,
+    quantity_factor,
 ):
-    # Two greedy customers add the whole stock at the same time to each of their carts.
-    for items in (cart_items, secondary_cart_items):
+    # Two greedy customers add the whole stock (or a part of it) at the same time to
+    #  each of their carts.
+    requests_tasks = []
+    for selected_client, items in (
+        (auth_client, cart_items),
+        (secondary_auth_client, secondary_cart_items),
+    ):
+        paths, payloads = [], []
         for item in items:
-            item.quantity = item.icecream.available_stock
-        session.add_all(items)
-    await session.commit()
+            paths.append(f"/v1/cart/items/{item.id}")
+            payloads.append(
+                {"quantity": int(item.icecream.available_stock * quantity_factor)}
+            )
+        requests_tasks.append(
+            _clients_requests(
+                paths,
+                _clients=[selected_client],
+                _method="put",
+                _payloads=payloads,
+            )
+        )
+    responses = itertools.chain(*(await asyncio.gather(*requests_tasks)))
+    for response in responses:
+        assert response.status_code == 200
 
-    # Two different customers triggering a card payment each, simultaneously and
+    # Two different customers triggering a payment each, simultaneously and potentially
     #  without enough stock for both.
-    args, kwargs = ["/v1/payments"], {"json": {"method": PaymentMethod.CARD.value}}
-    requests = [
-        crt_client.post(*args, **kwargs)
-        for crt_client in (auth_client, secondary_auth_client)
-    ]
-    responses = await asyncio.gather(*requests)
-    print([resp.status_code for resp in responses])
+    responses = await _clients_requests(
+        "/v1/payments",
+        _clients=[auth_client, secondary_auth_client],
+        _method="post",
+        method=method.value,
+    )
+    one_code = 201 if method is PaymentMethod.CASH else 202
+    other_code = 307 if quantity_factor > 0.5 else one_code
+    assert sorted(response.status_code for response in responses) == sorted(
+        [one_code, other_code]
+    )
+
+    # Only one of the two can successfully order when trying to overbuy.
+    orders = (await Order.fetch(session, joinedloads=[Order.items])).unique().all()
+    expected_orders_count = 1 if quantity_factor > 0.5 else 2
+    assert len(orders) == expected_orders_count
+    expected_status = (
+        OrderStatus.CONFIRMED if method is PaymentMethod.CASH else OrderStatus.PENDING
+    )
+    expected_amount = 1110.0 * quantity_factor
+    for order in orders:
+        assert order.status is expected_status
+        assert order.amount == expected_amount

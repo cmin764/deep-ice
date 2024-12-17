@@ -43,11 +43,10 @@ class OrderService:
 
             icecream.stock -= item.quantity
             icecream.blocked_quantity -= item.quantity
+            self._session.add(icecream)
             await self._stats_service.acknowledge_icecream_demand(
                 cast(int, icecream.id), name=icecream.name, quantity=item.quantity
             )
-
-        self._session.add_all(order.items)
 
     async def cancel_order(self, order_id: int):
         order = await self._get_order(order_id)
@@ -62,7 +61,7 @@ class OrderService:
                 continue
 
             icecream.blocked_quantity -= item.quantity
-        self._session.add_all(order.items)
+            self._session.add(icecream)
 
     async def make_order_from_cart(self, cart: Cart) -> Order:
         # Creates and saves an order out of the current cart and returns it for later

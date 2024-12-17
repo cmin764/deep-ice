@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     POSTGRES_DB: str
 
     REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDLOCK_TTL: int = 30  # seconds for the lock to persists in Redis
 
     TASK_MAX_TRIES: int = 3
     TASK_RETRY_DELAY: int = 1  # seconds between retries
@@ -53,4 +55,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()  # type: ignore
-redis_settings = RedisSettings(host=settings.REDIS_HOST)
+redis_settings = RedisSettings(host=settings.REDIS_HOST, port=settings.REDIS_PORT)

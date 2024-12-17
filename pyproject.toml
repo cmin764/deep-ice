@@ -17,6 +17,8 @@ dependencies = [
     "arq>=0.26.1",
     "redis>=5.1.1",
     "sentry-sdk[arq,fastapi]>=2.18.0",
+    "aioredlock>=0.7.3",
+    "setuptools>=75.6.0",
 ]
 
 [tool.uv]
@@ -77,3 +79,6 @@ line-length = 88
 
 [tool.ruff]
 line-length = 88
+
+[tool.mypy]
+ignore_missing_imports = true

@@ -34,8 +34,16 @@ class CartService:
 
         return cart
 
+    async def _refresh_icecream_stock(self, cart: Cart) -> None:
+        await self._session.refresh(cart)
+        for cart_item in cart.items:
+            await self._session.refresh(cart_item)
+            cart_item.icecream = await cart_item.awaitable_attrs.icecream
+            await self._session.refresh(cart_item.icecream)
+
     async def check_items_against_stock(self, cart: Cart) -> bool:
         # Ensure once again that we still have on stock the items we intend to buy.
+        await self._refresh_icecream_stock(cart)
         cart_ok = True
         for item in cart.items:
             if item.quantity > item.icecream.available_stock:

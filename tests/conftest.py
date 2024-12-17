@@ -7,6 +7,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (
     async_scoped_session,
     async_sessionmaker,
+    close_all_sessions,
     create_async_engine,
 )
 from sqlmodel import insert
@@ -36,7 +37,7 @@ def redis_client(mocker):
 
 
 @pytest.fixture
-async def _scoped_session():
+async def _scoped_session_factory():
     async_engine = create_async_engine(
         "sqlite+aiosqlite://",
         connect_args={"check_same_thread": False},
@@ -47,16 +48,18 @@ async def _scoped_session():
     session_factory = async_sessionmaker(
         bind=async_engine, class_=AsyncSession, expire_on_commit=False
     )
-    scoped_session = async_scoped_session(
+    scoped_session_factory = async_scoped_session(
         session_factory, scopefunc=asyncio.current_task
     )
-    yield scoped_session
-    await scoped_session.remove()
+    yield scoped_session_factory
+    await close_all_sessions()
+    await scoped_session_factory.remove()
+    await async_engine.dispose()
 
 
 @pytest.fixture
-async def session(_scoped_session: async_scoped_session):
-    async with _scoped_session() as session:
+async def session(_scoped_session_factory: async_scoped_session):
+    async with _scoped_session_factory() as session:
         yield session
 
 
@@ -130,9 +133,9 @@ async def secondary_user(users: list[User], user: User) -> User:
 
 
 @pytest.fixture
-async def _client_factory(_scoped_session: async_scoped_session, mocker):
+async def _client_factory(_scoped_session_factory: async_scoped_session, mocker):
     async def get_session_override():
-        async with _scoped_session() as session:
+        async with _scoped_session_factory() as session:
             yield session
 
     async def _create_client():
@@ -200,24 +203,15 @@ async def _create_cart_with_items(session: AsyncSession, user: User) -> list[Car
     for icecream in (await IceCream.fetch(session)).all():
         cart_item = CartItem(
             cart_id=cart.id,
-            icecream_id=icecream.id,
+            icecream=icecream,
             quantity=icecream.available_stock // 10,
         )
         items.append(cart_item)
-
     session.add_all(items)
     await session.commit()
 
-    items = list(
-        (
-            await CartItem.fetch(
-                session,
-                filters=[CartItem.id == cart.id],
-                joinedloads=[CartItem.icecream],
-            )
-        ).all()
-    )
-    return items
+    await session.refresh(cart)
+    return await cart.awaitable_attrs.items
 
 
 @pytest.fixture
