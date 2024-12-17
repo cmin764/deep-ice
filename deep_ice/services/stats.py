@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 
-import redis.asyncio as redis
+import redis.asyncio as aioredis
 
 from deep_ice.core.config import redis_settings
 
@@ -22,7 +22,9 @@ class StatsService(StatsInterface):
     POPULARITY_KEY = "POPULAR_ICECREAM"
 
     def __init__(self):
-        self._client = redis.Redis(host=redis_settings.host)
+        self._client = aioredis.Redis(
+            host=redis_settings.host, port=redis_settings.port
+        )
 
     @staticmethod
     def _get_product_key(*args: int | str) -> str:

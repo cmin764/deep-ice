@@ -1,18 +1,28 @@
+import asyncio
+import functools
+from typing import cast
 from unittest.mock import AsyncMock
 
 import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import (
+    async_scoped_session,
+    async_sessionmaker,
+    close_all_sessions,
+    create_async_engine,
+)
+from sqlmodel import insert
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel.pool import StaticPool
+
 from deep_ice import app
 from deep_ice.core.database import get_async_session
+from deep_ice.core.dependencies import get_lock_manager
 from deep_ice.core.security import get_password_hash
 from deep_ice.models import Cart, CartItem, IceCream, Order, SQLModel, User
 from deep_ice.services.cart import CartService
 from deep_ice.services.order import OrderService
 from deep_ice.services.stats import stats_service
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel import insert
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel.pool import StaticPool
 
 
 # Run tests with `asyncio` only.
@@ -28,8 +38,8 @@ def redis_client(mocker):
     )
 
 
-@pytest.fixture(name="session")
-async def session_fixture():
+@pytest.fixture
+async def _scoped_session_factory():
     async_engine = create_async_engine(
         "sqlite+aiosqlite://",
         connect_args={"check_same_thread": False},
@@ -37,11 +47,21 @@ async def session_fixture():
     )
     async with async_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
-
-    async_session = async_sessionmaker(
+    session_factory = async_sessionmaker(
         bind=async_engine, class_=AsyncSession, expire_on_commit=False
     )
-    async with async_session() as session:
+    scoped_session_factory = async_scoped_session(
+        session_factory, scopefunc=asyncio.current_task
+    )
+    yield scoped_session_factory
+    await close_all_sessions()
+    await scoped_session_factory.remove()
+    await async_engine.dispose()
+
+
+@pytest.fixture
+async def session(_scoped_session_factory: async_scoped_session):
+    async with _scoped_session_factory() as session:
         yield session
 
 
@@ -71,45 +91,107 @@ async def initial_data(session: AsyncSession) -> dict:
         {
             "name": "Cosmin Poieana",
             "email": "cmin764@gmail.com",
+            "password": "cosmin-password",
             "hashed_password": get_password_hash("cosmin-password"),
         },
         {
             "name": "John Doe",
             "email": "john.doe@deepicecream.ai",
+            "password": "john-password",
             "hashed_password": get_password_hash("john-password"),
         },
         {
             "name": "Sam Smith",
             "email": "sam.smith@deepicecream.ai",
+            "password": "sam-password",
             "hashed_password": get_password_hash("sam-password"),
         },
     ]
 
-    await session.exec(insert(IceCream).values(icecream_dump))
-    await session.exec(insert(User).values(users_dump))
+    await session.exec(insert(IceCream).values(icecream_dump))  # type: ignore
+    clean_users_dump = [
+        {key: value for key, value in user_data.items() if key != "password"}
+        for user_data in users_dump
+    ]
+    await session.exec(insert(User).values(clean_users_dump))  # type: ignore
     await session.commit()
 
     return {"icecream": icecream_dump, "users": users_dump}
 
 
-@pytest.fixture(name="client")
-async def client_fixture(session: AsyncSession, mocker):
-    async def get_session_override():
-        yield session
-
-    app.state.redis_pool = mocker.AsyncMock()
-    app.dependency_overrides[get_async_session] = get_session_override
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://localhost"
-    ) as client:
-        yield client
-    app.dependency_overrides.clear()
+@pytest.fixture
+async def users(session: AsyncSession, initial_data: dict) -> list[User]:
+    return list((await User.fetch(session)).all())
 
 
 @pytest.fixture
-async def auth_token(initial_data: dict, client: AsyncClient) -> str:
+async def user(users: list[User]) -> User:
+    return [usr for usr in users if usr.email == "cmin764@gmail.com"][0]
+
+
+@pytest.fixture
+async def secondary_user(users: list[User], user: User) -> User:
+    return [usr for usr in users if usr.email != user.email][0]
+
+
+class AsyncLockManager:
+    @staticmethod
+    @functools.lru_cache(maxsize=3)  # number of ice cream flavors
+    def _get_lock(key: str, loop):  # cache by key and current event loop
+        return asyncio.Lock()
+
+    @classmethod
+    async def lock(cls, key: str):
+        current_loop = asyncio.get_running_loop()
+        lock = cls._get_lock(key, loop=current_loop)
+        await lock.acquire()
+        return lock
+
+    @staticmethod
+    async def unlock(lock: asyncio.Lock):
+        lock.release()
+
+
+@pytest.fixture
+async def _client_factory(_scoped_session_factory: async_scoped_session, mocker):
+    async def _get_async_session_override():
+        async with _scoped_session_factory() as session:
+            yield session
+
+    async def _get_lock_manager_override():
+        return AsyncLockManager()
+
+    async def _create_client():
+        app.state.redis_pool = mocker.AsyncMock()
+        app.dependency_overrides[get_async_session] = _get_async_session_override
+        app.dependency_overrides[get_lock_manager] = _get_lock_manager_override
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://localhost"
+        ) as client:
+            yield client
+        app.dependency_overrides.clear()
+
+    return _create_client
+
+
+@pytest.fixture
+async def client(_client_factory):
+    async for client in _client_factory():
+        yield client
+
+
+@pytest.fixture
+async def secondary_client(_client_factory):
+    async for client in _client_factory():
+        yield client
+
+
+async def _get_auth_token(initial_data: dict, user: User, client: AsyncClient) -> str:
+    users_dump = initial_data["users"]
+    user_dump = [item for item in users_dump if item["email"] == user.email][0]
+
     # Authenticate and get the token.
-    form_data = {"username": "cmin764@gmail.com", "password": "cosmin-password"}
+    form_data = {"username": user.email, "password": user_dump["password"]}
     response = await client.post("/v1/auth/access-token", data=form_data)
     assert response.status_code == 200
 
@@ -120,52 +202,58 @@ async def auth_token(initial_data: dict, client: AsyncClient) -> str:
 
 
 @pytest.fixture
-async def auth_client(client: AsyncClient, auth_token: str):
-    client.headers.update({"Authorization": f"Bearer {auth_token}"})
+async def auth_client(initial_data: dict, user: User, client: AsyncClient):
+    token = await _get_auth_token(initial_data, user, client)
+    client.headers.update({"Authorization": f"Bearer {token}"})
     return client
 
 
 @pytest.fixture
-async def user(session: AsyncSession) -> User:
-    user = (
-        await User.fetch(session, filters=[User.email == "cmin764@gmail.com"])
-    ).one()
-    return user
+async def secondary_auth_client(
+    initial_data: dict, secondary_user: User, secondary_client: AsyncClient
+):
+    token = await _get_auth_token(initial_data, secondary_user, secondary_client)
+    secondary_client.headers.update({"Authorization": f"Bearer {token}"})
+    return secondary_client
 
 
-@pytest.fixture
-async def cart_items(
-    session: AsyncSession, initial_data: dict, user: User
-) -> list[CartItem]:
+async def _create_cart_with_items(session: AsyncSession, user: User) -> list[CartItem]:
     cart = Cart(user_id=user.id)
     session.add(cart)
     await session.commit()
     await session.refresh(cart)
 
     items = []
-    for ice_data in initial_data["icecream"]:
-        icecream = (
-            await IceCream.fetch(
-                session, filters=[IceCream.flavor == ice_data["flavor"]]
-            )
-        ).one()
+    for icecream in (await IceCream.fetch(session)).all():
         cart_item = CartItem(
             cart_id=cart.id,
-            icecream_id=icecream.id,
+            icecream=icecream,
             quantity=icecream.available_stock // 10,
         )
         items.append(cart_item)
-
     session.add_all(items)
     await session.commit()
 
-    return items
+    await session.refresh(cart)
+    return await cart.awaitable_attrs.items
+
+
+@pytest.fixture
+async def cart_items(session: AsyncSession, user: User) -> list[CartItem]:
+    return await _create_cart_with_items(session, user)
+
+
+@pytest.fixture
+async def secondary_cart_items(
+    session: AsyncSession, secondary_user: User
+) -> list[CartItem]:
+    return await _create_cart_with_items(session, secondary_user)
 
 
 @pytest.fixture
 async def order(session: AsyncSession, cart_items: list[CartItem], user: User) -> Order:
     cart_service = CartService(session)
-    cart = await cart_service.get_cart(user.id)
+    cart = await cart_service.ensure_cart(cast(int, user.id))
     order_service = OrderService(session, stats_service=stats_service)
     order = await order_service.make_order_from_cart(cart)
     await session.commit()

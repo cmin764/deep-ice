@@ -10,11 +10,12 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         # Use the top level .env file (one level above ./deep_ice/).
         env_file=".env",
-        env_ignore_empty=True,
+        env_ignore_empty=False,
         extra="ignore",
     )
 
     LOG_LEVEL: str = "INFO"
+    DEBUG: bool = False
     PROJECT_NAME: str = "Deep Ice"
     API_V1_STR: str = "/v1"
 
@@ -30,8 +31,10 @@ class Settings(BaseSettings):
     POSTGRES_DB: str
 
     REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDLOCK_TTL: int = 30  # seconds for the lock to persists in Redis
 
-    TASK_MAX_RETRIES: int = 3
+    TASK_MAX_TRIES: int = 3
     TASK_RETRY_DELAY: int = 1  # seconds between retries
     TASK_BACKOFF_FACTOR: int = 5  # seconds to wait based on the job try counter
 
@@ -52,4 +55,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()  # type: ignore
-redis_settings = RedisSettings(host=settings.REDIS_HOST)
+redis_settings = RedisSettings(host=settings.REDIS_HOST, port=settings.REDIS_PORT)

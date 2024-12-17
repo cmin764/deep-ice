@@ -1,7 +1,8 @@
-from typing import Annotated
+from typing import Annotated, AsyncGenerator
 
 import jwt
 import sentry_sdk
+from aioredlock import Aioredlock
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
@@ -9,7 +10,7 @@ from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from deep_ice.core import logger, security
-from deep_ice.core.config import settings
+from deep_ice.core.config import redis_settings, settings
 from deep_ice.core.database import get_async_session
 from deep_ice.models import TokenPayload, User
 from deep_ice.services.cart import CartService
@@ -51,5 +52,15 @@ async def get_cart_service(session: SessionDep) -> CartService:
     return CartService(session)
 
 
+async def get_lock_manager() -> AsyncGenerator[Aioredlock, None]:
+    lock_manager = Aioredlock(
+        [{"host": redis_settings.host, "port": redis_settings.port}],
+        internal_lock_timeout=settings.REDLOCK_TTL,
+    )
+    yield lock_manager
+    await lock_manager.destroy()
+
+
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 CartServiceDep = Annotated[CartService, Depends(get_cart_service)]
+RedlockDep = Annotated[Aioredlock, Depends(get_lock_manager)]

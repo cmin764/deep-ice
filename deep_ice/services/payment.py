@@ -33,7 +33,7 @@ async def make_payment_task(
             msg = f"{method.value} payment for order #{order_id} failed, retrying..."
             logger.warning(msg)
             sentry_sdk.capture_message(msg, level="warning")
-        raise Retry(defer=attempts * settings.TASK_BACKOFF_FACTOR)
+            raise Retry(defer=attempts * settings.TASK_BACKOFF_FACTOR)
 
     async for session in get_async_session():
         order_service = OrderService(session, stats_service=stats_service)
@@ -82,7 +82,9 @@ class PaymentStub(PaymentInterface):
 
     min_delay: int
     max_delay: int
-    allow_failures: bool = False  # enable failures or not
+    # Enable failures (or not) and at what rate.
+    allow_failures: bool = False
+    failure_rate: float = 0.2
 
     async def make_payment(
         self,
@@ -124,7 +126,9 @@ class PaymentStub(PaymentInterface):
         if self.allow_failures:
             # Simulate payment result: 80% chance of success, 20% chance of failure.
             payment_result = random.choices(
-                [PaymentStatus.SUCCESS, PaymentStatus.FAILED], weights=[80, 20], k=1
+                [PaymentStatus.SUCCESS, PaymentStatus.FAILED],
+                weights=[1 - self.failure_rate, self.failure_rate],
+                k=1,
             )[0]
         else:
             payment_result = PaymentStatus.SUCCESS
@@ -196,4 +200,4 @@ class PaymentService:
         self._session.add(payment)
 
 
-payment_stub = PaymentStub(1, 3, allow_failures=True)
+payment_stub = PaymentStub(1, 3, allow_failures=True, failure_rate=0.2)

@@ -68,7 +68,7 @@ class BaseIceCream(SQLModel):
 class IceCream(BaseIceCream, FetchMixin, table=True):
     id: Annotated[int | None, Field(primary_key=True)] = None
     stock: int
-    blocked_quantity: int = 0  # reserved for payments only
+    blocked_quantity: int = 0  # reserved during payments
     is_active: bool = True
 
     cart_items: list["CartItem"] = Relationship(
