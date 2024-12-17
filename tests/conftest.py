@@ -1,4 +1,5 @@
 import asyncio
+import functools
 from typing import cast
 from unittest.mock import AsyncMock
 
@@ -16,6 +17,7 @@ from sqlmodel.pool import StaticPool
 
 from deep_ice import app
 from deep_ice.core.database import get_async_session
+from deep_ice.core.dependencies import get_lock_manager
 from deep_ice.core.security import get_password_hash
 from deep_ice.models import Cart, CartItem, IceCream, Order, SQLModel, User
 from deep_ice.services.cart import CartService
@@ -132,15 +134,37 @@ async def secondary_user(users: list[User], user: User) -> User:
     return [usr for usr in users if usr.email != user.email][0]
 
 
+class AsyncLockManager:
+    @staticmethod
+    @functools.lru_cache(maxsize=3)  # number of ice cream flavors
+    def _get_lock(key: str, loop):  # cache by key and current event loop
+        return asyncio.Lock()
+
+    @classmethod
+    async def lock(cls, key: str):
+        current_loop = asyncio.get_running_loop()
+        lock = cls._get_lock(key, loop=current_loop)
+        await lock.acquire()
+        return lock
+
+    @staticmethod
+    async def unlock(lock: asyncio.Lock):
+        lock.release()
+
+
 @pytest.fixture
 async def _client_factory(_scoped_session_factory: async_scoped_session, mocker):
-    async def get_session_override():
+    async def _get_async_session_override():
         async with _scoped_session_factory() as session:
             yield session
 
+    async def _get_lock_manager_override():
+        return AsyncLockManager()
+
     async def _create_client():
         app.state.redis_pool = mocker.AsyncMock()
-        app.dependency_overrides[get_async_session] = get_session_override
+        app.dependency_overrides[get_async_session] = _get_async_session_override
+        app.dependency_overrides[get_lock_manager] = _get_lock_manager_override
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://localhost"
         ) as client:
