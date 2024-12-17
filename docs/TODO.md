@@ -27,4 +27,4 @@ Up next production-grade service improvements.
 - Send stats to **Elasticsearch**. (**Kibana**)
 - Add front-end for the API with Next.js.
 - Monitor system and app metrics with **Prometheus**. (**Grafana**)
-- Deploy the whole system in GCP, AWS, Azure.
+- Deploy the whole system in GCP/AWS/Azure.
