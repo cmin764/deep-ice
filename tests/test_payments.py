@@ -139,7 +139,7 @@ async def _clients_requests(path, *, _clients, _method, _payloads=None, **payloa
 @pytest.mark.parametrize("quantity_factor", [1, 0.5])
 @pytest.mark.parametrize("method", list(PaymentMethod))
 @pytest.mark.anyio
-async def test_concurrent_card_payments(
+async def test_concurrent_payments(
     redis_client,
     session,
     auth_client,

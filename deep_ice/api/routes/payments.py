@@ -74,11 +74,13 @@ async def make_payment(
             detail="There are no items in the cart",
         )
 
-    lock_key = "ice-lock:" + "-".join(
-        map(str, sorted(item.icecream_id for item in cart.items))
-    )
+    lock_keys = [f"ice-lock:{item.icecream_id}" for item in cart.items]
+    locks = []
     try:
-        async with await redlock.lock(lock_key):
+        for lock_key in lock_keys:
+            lock = await redlock.lock(lock_key)
+            locks.append(lock)
+
             cart_ok = await cart_service.check_items_against_stock(cart)
             if not cart_ok:
                 # Redirect back to the cart so we get aware of the new state based on
@@ -92,6 +94,9 @@ async def make_payment(
     except LockError as exc:
         logger.exception("Payment lock error with key %r: %s", lock_key, exc)
         sentry_sdk.capture_exception(exc)
+    finally:
+        for lock in locks:
+            await redlock.unlock(lock)
 
 
 @router.get("", response_model=list[RetrievePayment])

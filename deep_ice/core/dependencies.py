@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, AsyncGenerator
 
 import jwt
 import sentry_sdk
@@ -52,12 +52,13 @@ async def get_cart_service(session: SessionDep) -> CartService:
     return CartService(session)
 
 
-async def get_lock_manager() -> Aioredlock:
+async def get_lock_manager() -> AsyncGenerator[Aioredlock, None]:
     lock_manager = Aioredlock(
         [{"host": redis_settings.host, "port": redis_settings.port}],
         internal_lock_timeout=settings.REDLOCK_TTL,
     )
-    return lock_manager
+    yield lock_manager
+    await lock_manager.destroy()
 
 
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
