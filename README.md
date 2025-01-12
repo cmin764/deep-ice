@@ -32,8 +32,8 @@ Ensure you have Python 3, Invoke and UV installed, then in the project dir run t
 inv run-server -d
 ```
 
-The server requires PostgreSQL and Redis up and running.  
-Ensure proper configuration by copying _[.env.template](.env.template)_ into _[.env](.env)_ first, then change the file to suit your setup.
+> The server requires PostgreSQL and Redis up and running.  
+> Ensure proper configuration by copying _[.env.template](.env.template)_ into _[.env](.env)_ first, then change the file to suit your setup.
 
 Don't forget to run migrations first and a task queue worker to deal with deferred tasks:
 

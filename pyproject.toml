@@ -1,6 +1,6 @@
 [project]
 name = "deep-ice"
-version = "1.4.0"
+version = "1.4.1"
 description = "E-commerce platform selling ice cream"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -10,7 +10,7 @@ dependencies = [
     "pydantic>=2.9.2",
     "pydantic-settings>=2.5.2",
     "sqlmodel>=0.0.22",
-    "asyncpg>=0.29.0",
+    "asyncpg>=0.30.0",
     "greenlet>=3.1.1",
     "passlib[bcrypt]>=1.7.4",
     "pyjwt>=2.9.0",
