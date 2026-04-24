@@ -2,7 +2,8 @@
 
 This document maps the deployment journey from a quick E2E check to a production-grade setup,
 aligned with the roadmap in [TODO.md](TODO.md). Each stage builds on the previous one, so you
-can stop at any point that fits the current development phase.
+can stop at any point that fits the current development phase. See the [README](../README.md) for
+the system architecture diagram.
 
 ## Stack recap
 
@@ -237,6 +238,105 @@ When you need reliability, auto-scaling, and a path to enterprise infra.
 
 **CI/CD bridge:** extend `.github/workflows/ci.yml` with a deploy step that builds the image,
 pushes to ECR, and triggers a new ECS deployment via `aws ecs update-service`.
+
+---
+
+## Continuous deployment
+
+CI already runs on every PR and push to `main` via `.github/workflows/ci.yml`. The steps below
+extend it with a deploy job that fires only on pushes to `main` (i.e. after a PR merges).
+
+### Stage 1: Railway
+
+Railway auto-deploys on every push to the connected branch by default -- no extra workflow
+needed. To trigger it explicitly from CI (e.g. to enforce deploy only after all checks pass):
+
+```yaml
+deploy:
+  needs: checks
+  if: github.ref == 'refs/heads/main'
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - name: Trigger Railway deploy
+      run: |
+        curl -X POST "${{ secrets.RAILWAY_DEPLOY_WEBHOOK }}"
+```
+
+Set `RAILWAY_DEPLOY_WEBHOOK` in GitHub repo secrets (available in the Railway service settings).
+
+### Stage 1b: AWS EC2 (SSH + docker compose pull)
+
+The simplest CD for an EC2 instance: SSH in, pull the new image, restart compose. This assumes
+the image is pushed to a registry (ECR or Docker Hub) as part of the workflow.
+
+```yaml
+deploy:
+  needs: checks
+  if: github.ref == 'refs/heads/main'
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Login to ECR
+      id: ecr-login
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build and push image
+      env:
+        ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/deep-ice:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/deep-ice:$IMAGE_TAG
+        echo "IMAGE=$ECR_REGISTRY/deep-ice:$IMAGE_TAG" >> $GITHUB_ENV
+
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          cd ~/deep-ice
+          IMAGE=${{ env.IMAGE }} docker compose pull app worker
+          docker compose up -d --no-deps app worker
+          docker compose run --rm alembic
+```
+
+Required GitHub secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`,
+`EC2_HOST`, `EC2_SSH_KEY`.
+
+The `alembic` service runs migrations after each deploy. If a migration fails, the old
+containers are already replaced -- add a health check or blue/green swap if zero-downtime
+migrations matter at this stage.
+
+### Stage 3: AWS ECS Fargate
+
+ECS deployments replace the SSH step with a service update. After pushing to ECR:
+
+```yaml
+    - name: Deploy to ECS
+      run: |
+        aws ecs update-service \
+          --cluster deep-ice \
+          --service web \
+          --force-new-deployment
+        aws ecs update-service \
+          --cluster deep-ice \
+          --service worker \
+          --force-new-deployment
+```
+
+ECS pulls the new image tag, drains the old tasks, and starts the new ones. Migrations are best
+run as a separate ECS task (one-off run) before the service update, using the same image.
 
 ---
 
