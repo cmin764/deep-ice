@@ -60,32 +60,78 @@ Railway provides first-class Postgres and Redis plugins and deploys straight fro
 
 ---
 
-### Option B: AWS Lightsail (cheap VPS, stepping stone to AWS)
+### Option B: AWS free tier (EC2 + RDS, 12 months)
 
-A single `$5/month` Lightsail instance runs the full `docker-compose.yml` stack as-is. No
-managed services, no IAM complexity.
+The AWS free tier covers everything except managed Redis. The strategy is to run the app,
+worker, and Redis together on a single EC2 instance (exactly like `docker-compose.yml` does
+locally), and point Postgres at a free RDS instance so the database is managed separately.
 
-**Setup (roughly 2 hours):**
+**What's free (12-month free tier on a new AWS account):**
 
-1. Launch a Lightsail instance (Ubuntu, $5/month tier: 1 vCPU, 1 GB RAM).
-2. SSH in, install Docker + Compose, clone the repo.
-3. `cp .env.template .env`, fill in secrets, `docker compose up -d`.
-4. Open port 80 in the Lightsail firewall rules.
+| Service | Free allowance |
+|---|---|
+| EC2 t2.micro | 750 hrs/month (enough for one always-on instance) |
+| RDS Postgres t2.micro | 750 hrs/month + 20 GB storage + 20 GB backups |
+| ECR | 500 MB/month storage |
+| Data transfer out | 1 GB/month |
+
+**ElastiCache has no free tier.** Run Redis as a container on the EC2 instance instead -- the
+existing `docker-compose.yml` already does this, so no changes needed. For higher reliability,
+[Upstash](https://upstash.com) offers a permanent free tier (10,000 commands/day, 256 MB) as a
+drop-in replacement -- just swap `REDIS_HOST` for the Upstash endpoint.
+
+**Setup (roughly 3 hours):**
+
+1. Launch an EC2 t2.micro (Ubuntu, 1 vCPU, 1 GB RAM). Assign an Elastic IP (free while attached).
+2. Launch an RDS Postgres t2.micro in the same VPC. Set the security group to allow the EC2
+   instance on port 5432 only.
+3. SSH into EC2, install Docker + Compose, clone the repo.
+4. `cp .env.template .env` -- set `POSTGRES_SERVER` to the RDS endpoint, leave `REDIS_HOST`
+   pointing at `localhost` (Redis runs in a container on the same instance).
+5. Remove the `db` service from `docker-compose.yml` (RDS replaces it). Keep `redis`, `app`,
+   `worker`, and `alembic`.
+6. `docker compose up -d`. Open port 80 (and 443 if adding TLS) in the EC2 security group.
+
+**Cost:**
+
+| Resource | Free tier (months 1-12) | After free tier |
+|---|---|---|
+| EC2 t2.micro | $0 | ~$8/month |
+| RDS Postgres t2.micro | $0 | ~$15/month |
+| Redis (in container) | $0 | $0 |
+| Elastic IP | $0 while attached | $0 while attached |
+| **Total** | **$0** | **~$23/month** |
+
+**Tradeoffs:**
+- Pro: fully on AWS, zero cost for 12 months -- ideal for learning the platform.
+- Pro: RDS gives managed backups and minor version upgrades without touching the instance.
+- Pro: after 12 months, upgrade to Lightsail ($5/month) or ECS without changing the app.
+- Con: Redis and the app share 1 GB RAM on t2.micro -- monitor memory usage; add a swap file as
+  a safety net (`fallocate -l 1G /swapfile`).
+- Con: single EC2 instance is still a single point of failure; `restart: always` in compose
+  handles crashes but not instance failure.
+- Con: manual OS patching on the EC2 instance.
+
+---
+
+### Option C: AWS Lightsail (cheap VPS, post-free-tier fallback)
+
+Once the 12-month free tier expires, Lightsail is the cheapest way to stay on AWS without moving
+to managed services. A single `$5/month` instance runs the full `docker-compose.yml` as-is.
 
 **Cost:**
 
 | Resource | Price |
 |---|---|
-| Lightsail instance ($5 tier) | $5/month |
+| Lightsail instance ($5 tier, 1 vCPU / 1 GB RAM) | $5/month |
 | Static IP | free while attached |
 | **Total** | **$5/month** |
 
 **Tradeoffs:**
-- Pro: cheapest AWS option; one monthly line item.
+- Pro: one monthly line item, no IAM complexity.
 - Pro: identical to local `docker compose` -- zero config delta.
-- Con: single point of failure; no auto-restart on crash (add a systemd unit or `restart: always` in compose).
-- Con: all services share 1 GB RAM -- tight once Sentry/Grafana sidecars are added.
-- Con: manual OS patching.
+- Con: all services share 1 GB RAM (same constraint as the free-tier EC2 path above).
+- Con: no managed DB -- Postgres runs in a container, so backups are your responsibility.
 
 ---
 
@@ -197,21 +243,29 @@ pushes to ECR, and triggers a new ECS deployment via `aws ecs update-service`.
 ## Recommended journey
 
 ```
-Stage 1a: Railway (today)
-  → E2E smoke test, zero config overhead, ~$0
+Stage 1a: Railway (today, ~$0)
+  → Fastest E2E smoke test, no AWS account needed
+  → Vercel for Next.js frontend (free, permanent)
 
-Stage 1b: AWS Lightsail ($5/month)
-  → If you want everything on AWS from the start
-  → Same docker-compose.yml, SSH + deploy
+Stage 1b: AWS free tier -- EC2 t2.micro + RDS Postgres ($0 for 12 months)
+  → Best option if the goal is learning AWS
+  → Redis runs in a container on EC2; Upstash as a free managed alternative
+  → Same docker-compose.yml with the db service swapped for RDS
 
-Stage 2: Add SaaS observability (Sentry free + Grafana Cloud free)
-  → Covers Sentry, Grafana, and Loki (replaces ELK) from the TODO
-  → ~$0 until volume forces an upgrade
+Stage 1c: AWS Lightsail ($5/month, post-free-tier)
+  → Cheapest way to stay on AWS after the 12-month free tier expires
+  → Full docker-compose.yml, no config changes
+
+Stage 2: Add SaaS observability (~$0)
+  → Sentry.io free tier: error tracking, 5k errors/month
+  → Grafana Cloud free tier: metrics (Prometheus) + logs (Loki, replaces ELK)
+  → Both are permanent free tiers, not 12-month limited
 
 Stage 3: AWS ECS Fargate (~$60/month)
   → When uptime, auto-scaling, or compliance matter
-  → CI pushes to ECR, ECS rolls out
+  → CI pushes image to ECR, ECS rolls out automatically
+  → CloudWatch can replace Grafana Cloud if already deep in AWS
 ```
 
-None of these stages requires rewriting the app. The `docker-compose.yml` and the `Dockerfile`
-work as-is through Stage 1 and Stage 2. Stage 3 is purely infrastructure configuration.
+None of these stages requires rewriting the app. The `docker-compose.yml` and `Dockerfile` work
+as-is through Stages 1 and 2. Stage 3 is purely infrastructure configuration.
